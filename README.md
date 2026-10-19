@@ -4,9 +4,13 @@
 
 Windows 10 / 11 原生桌面工具；每隻角色都能使用自己的 GIF，並依 CPU、實體記憶體或 GPU 使用率自動調整動畫速度。
 
-## 開始使用
+## 下載與開始使用
 
-打開 `dist/PaceBuddies-0.4.2-win-x64/PaceBuddies.exe`，不需要安裝 .NET，也不需要管理員權限。免安裝包可以整個資料夾移動。
+從 [最新 Release](https://github.com/bosen12/pace-buddies/releases/latest) 下載 [Windows x64 免安裝 ZIP](https://github.com/bosen12/pace-buddies/releases/download/v0.4.2/PaceBuddies-0.4.2-win-x64.zip)，解壓縮後開啟 `PaceBuddies.exe`。也可直接下載 [單一執行檔](https://github.com/bosen12/pace-buddies/releases/download/v0.4.2/PaceBuddies.exe)。
+
+不需要安裝 .NET，也不需要管理員權限。免安裝包可以整個資料夾移動。Release 附有 `SHA256SUMS.txt` 可核對下載檔案。
+
+![跑跑夥伴管理視窗](https://raw.githubusercontent.com/bosen12/pace-buddies/main/docs/images/manager.png)
 
 預設有三隻原創像素夥伴：麻糬（CPU）、布丁（RAM）、啾啾（GPU）。左邊選角色，右邊修改設定，變更會自動儲存。可新增最多 20 隻，新增的角色與其他角色互不影響。
 
