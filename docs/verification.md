@@ -1,5 +1,15 @@
 # Release verification · 2026-10-19
 
+## 0.5.2 desktop composition with Wallpaper Engine
+
+- User reports bound roles absent even when only the desktop is visible. Wallpaper Engine remains running throughout. Existing three bound role HWNDs are visible/uncloaked, above DefView/wallpaper in native sibling order, so native visibility and hit-testing alone are insufficient.
+- Solid-green probe: parentProgman has NativeHit=true but sampled desktop pixel is wallpaper; reparenting only the same probe to SHELLDLL_DefView produces the exact expected green pixel. Did not stop Wallpaper Engine or modify Explorer/wallpaper windows. This establishes our attachment/composition bug in the current environment; it does not establish Wallpaper Engine alone as its cause.
+- Added red fixture-pixel regression: old host passes NativeHit but fails expected orange0x77B6F5. New host returns the exact fixture color. The actual visible icon view is selected under Progman/WorkerW; DPI validation, child styles, screen/client coordinates and native lifetime checks remain intact.
+- Non-topmost detach previously retained the below-desktop z-order; explicitly raise our restored top-level HWND without activation or permanent topmost. Bound-pixel and non-topmost-detach-pixel regressions pass together.
+- Final build0 warnings/errors;66 Core checks pass. Packaged115 normal and115 background Windows checks pass/no skips, both report Wallpaper Engine running. Includes desktop pixels, Show Desktop, captured close/recreation, gesture policy, taskbar/GIF/cache/startup regressions. Scoped read-only review found no important issue.
+- Activated local fixed entry0.5.2 process23780. Latest four-buddy existing fields unchanged and all GIF files present. All four role HWNDs visible/uncloaked; three configured bound roles parented to DefView132310, remaining floating role parent0. Existing startup preference/path preserved; no real-profile error.log; fixed-entry EXE hash matches release package.
+- Evidence: artifacts/desktop-occlusion-before.json, artifacts/layer-probe/result.json, artifacts/desktop-pixels-red/, artifacts/desktop-pixels-green/, artifacts/release-052-normal/, artifacts/release-052-background/.
+
 ## 0.5.1 desktop drag events and process recovery
 
 - Reproduced GIF Image→ScrollViewer→Window press routing: ScrollViewer marks the event handled and the old window handler never starts a gesture. The added routed-press check fails before handledEventsToo registration and passes after it. Locked and desktop-bound press cases, plus actual preview-release capture cleanup, are covered.

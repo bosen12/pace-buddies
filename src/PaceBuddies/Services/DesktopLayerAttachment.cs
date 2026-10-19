@@ -48,25 +48,36 @@ internal sealed class DesktopLayerAttachment(IntPtr window) : IDisposable
             GetWindowRect(window,out var bounds);
             SetParent(window,IntPtr.Zero);
             SetWindowLongPtr(window,-16,new IntPtr(floatingStyle));
-            SetWindowPos(window,IntPtr.Zero,bounds.Left,bounds.Top,0,0,0x35);
+            SetWindowPos(window,IntPtr.Zero,bounds.Left,bounds.Top,0,0,0x31);
         }
         host=IntPtr.Zero;
     }
     public void Dispose()=>Detach();
     internal static IntPtr FindHost()
     {
-        var candidate=FindWindow("Progman",null);
-        if(IsIconHost(candidate))return candidate;
+        var candidate=FindIconView(FindWindow("Progman",null));
+        if(candidate!=IntPtr.Zero)return candidate;
         var found=IntPtr.Zero;
         EnumWindows((handle,_)=>
         {
             var name=new StringBuilder(64);GetClassName(handle,name,name.Capacity);
-            if(name.ToString() is "WorkerW" or "Progman"&&IsIconHost(handle)){found=handle;return false;}
+            if(name.ToString() is "WorkerW" or "Progman")
+            {
+                found=FindIconView(handle);
+                if(found!=IntPtr.Zero)return false;
+            }
             return true;
         },IntPtr.Zero);
         return found;
     }
-    private static bool IsIconHost(IntPtr handle)=>handle!=IntPtr.Zero&&IsWindowVisible(handle)&&FindWindowEx(handle,IntPtr.Zero,"SHELLDLL_DefView",null)!=IntPtr.Zero;
+    private static IntPtr FindIconView(IntPtr shell)
+    {
+        if(shell==IntPtr.Zero||!IsWindowVisible(shell))return IntPtr.Zero;
+        // Modern Explorer composes the wallpaper and icon view separately. A layered
+        // child of Progman can hit-test yet never render; host it within the icon view.
+        var view=FindWindowEx(shell,IntPtr.Zero,"SHELLDLL_DefView",null);
+        return view!=IntPtr.Zero&&IsWindowVisible(view)?view:IntPtr.Zero;
+    }
     [StructLayout(LayoutKind.Sequential)] private struct NativePoint(int x,int y){public int X=x,Y=y;}
     private delegate bool EnumWindow(IntPtr window,IntPtr data);
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindow callback,IntPtr data);

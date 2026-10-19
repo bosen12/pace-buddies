@@ -1,12 +1,13 @@
 # Findings
 
-- Desktop binding discovery: visible Progman hosts SHELLDLL_DefView and a wallpaper WorkerW child on current Windows11. Select the icon-host parent rather than arbitrary hidden WorkerW windows. Parent our own HWND above the icon-view sibling for interaction; desktop icon hierarchy stays intact.
+- Desktop binding discovery: visible Progman hosts SHELLDLL_DefView and a wallpaper WorkerW child on current Windows11. Initial parent-Progman attachment could hit-test without rendering in this composition environment. Current0.5.2 attaches our HWND within visible SHELLDLL_DefView above the icon-list child; Explorer/wallpaper HWNDs stay unchanged.
 - SetParent does not update WS_CHILD/WS_POPUP automatically and has DPI-awareness constraints. Preserve physical positions and map ScreenToClient on bound moves; validate DPI contexts before cross-process parenting.
 - A failed attachment must explicitly restore native TOPMOST because WPF may cache Topmost=true while native HWND_NOTOPMOST has already lowered the window. Limit effective desktop height by work-area DIP minus28; keep requested size for larger monitors.
 - Shell MinimizeAll returns before its animation finishes; fixed350ms visual assertions can race. Wait for actual desktop hit exposure with a bounded timeout; preserve UndoMinimizeAll in finally.
 - GIF ScrollViewer consumes MouseLeftButtonDown; use handledEventsToo for the role while preserving preview-started resize gestures. Snapshot event-screen start before coordinated editor updates; avoid mixing in-HWND queued points with live cursor polling.
 - Stop gestures in OnClosing, before native capture teardown, rather than waiting for Closed; otherwise LostMouseCapture can reenter coordinator.Apply and try to show a closing window.
 - Keep the local fixed dist/PaceBuddies-win-x64 entry updated during activation. Its stale0.1.0 binary was reopened while newer versioned directories existed, causing the modern taskbar strip to be absent.
+- With Wallpaper Engine running, direct screen-pixel probing distinguishes invisible composited children from genuinely rendered buddies. NativeHit=true and IsWindowVisible=true were false assurances for parent-Progman binding. Non-topmost detach must remove SWP_NOZORDER to restore the role above desktop.
 
 - RunCat365 upstream uses WinForms and .NET 9. Current workstation has .NET SDK 8.0.426 and desktop runtime 8.0.32.
 - Upstream custom runners use 2–30 imported still frames at small tray sizes; the requested arbitrary GIF and multi-buddy desktop architecture justify a focused independent implementation.

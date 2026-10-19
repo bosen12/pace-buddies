@@ -3,7 +3,7 @@
     <OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms><ImplicitUsings>disable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest><AssemblyName>PaceBuddies</AssemblyName>
-    <Version>0.5.1</Version><Description>跑跑夥伴 · Pace Buddies</Description>
+    <Version>0.5.2</Version><Description>跑跑夥伴 · Pace Buddies</Description>
     <ApplicationIcon>Assets/PaceBuddies.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../PaceBuddies.Core/PaceBuddies.Core.csproj" /></ItemGroup>

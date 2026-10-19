@@ -6,11 +6,11 @@ Windows 10 / 11 原生桌面工具；每隻角色都能使用自己的 GIF，並
 
 ## 下載與開始使用
 
-從 [最新 Release](https://github.com/bosen12/pace-buddies/releases/latest) 下載 [Windows x64 免安裝 ZIP](https://github.com/bosen12/pace-buddies/releases/download/v0.5.1/PaceBuddies-0.5.1-win-x64.zip)，解壓縮後開啟 `PaceBuddies.exe`。也可直接下載 [單一執行檔](https://github.com/bosen12/pace-buddies/releases/download/v0.5.1/PaceBuddies.exe)。
+從 [最新 Release](https://github.com/bosen12/pace-buddies/releases/latest) 下載 [Windows x64 免安裝 ZIP](https://github.com/bosen12/pace-buddies/releases/download/v0.5.2/PaceBuddies-0.5.2-win-x64.zip)，解壓縮後開啟 `PaceBuddies.exe`。也可直接下載 [單一執行檔](https://github.com/bosen12/pace-buddies/releases/download/v0.5.2/PaceBuddies.exe)。
 
 不需要安裝 .NET，也不需要管理員權限。免安裝包可以整個資料夾移動。Release 附有 `SHA256SUMS.txt` 可核對下載檔案。
 
-升級時請先在舊版按「結束程式」，再開啟新版；右上角 × 只會收起視窗。既有角色、GIF 與設定會沿用。可從管理視窗左下確認版本為 v0.5.1，避免再次開到另一個資料夾中的舊版。
+升級時請先在舊版按「結束程式」，再開啟新版；右上角 × 只會收起視窗。既有角色、GIF 與設定會沿用。可從管理視窗左下確認版本為 v0.5.2，避免再次開到另一個資料夾中的舊版。
 
 ![跑跑夥伴管理視窗](https://raw.githubusercontent.com/bosen12/pace-buddies/main/docs/images/manager.png)
 
@@ -25,6 +25,7 @@ Windows 10 / 11 原生桌面工具；每隻角色都能使用自己的 GIF，並
 - **寬 GIF 與多角色**：工作列空間不足時，GIF 仍保留高度與比例，點角色列兩側的 `‹`、`›` 或使用滑鼠滾輪左右查看。不會為了塞進正方形而縮扁。桌面 GIF 寬度超過螢幕時，也可以用滾輪左右查看。
 - **移動與縮放（0.5.0）**：未勾「鎖定位置與大小」且未啟用滑鼠穿透時，可拖曳桌面角色移動；滑鼠移上去會出現右下角把手，拖曳可等比例縮放，也可按 Ctrl＋滾輪調整。設定高度範圍為 48～480；小螢幕會依工作區縮小顯示，保留原本高度設定。鎖定同時固定位置與大小。
 - **綁定桌面層（0.5.0）**：每隻可獨立勾選，角色會附著在桌面，位於一般應用視窗下方；執行「顯示桌面」仍會顯示。未鎖定時仍可移動、縮放。取消綁定會恢復懸浮與原本的置頂偏好；桌面層暫時無法使用時會顯示原因，改用懸浮並自動重試。
+- **動態桌布相容（0.5.2）**：修正部分 Windows 11 桌面合成環境下，綁定後有視窗卻沒有顯示 GIF 的問題；已在 Wallpaper Engine 持續運行時核對實際畫面像素。取消綁定時，非置頂角色也會恢復到桌面上方。
 - **找回角色**：點一下箭頭左側的工作列角色，可直接開啟該角色的設定。固定的管理系統匣圖示也一直保留；可以從管理視窗關閉桌面滑鼠穿透或按「把角色移回右下角」。桌面角色雙擊也可開啟管理視窗。
 - **開機啟動**：左下「啟動設定」可開關「登入 Windows 時啟動」。勾選「登入後只顯示角色」後，登入時不會彈出管理視窗，點工作列角色可開啟設定。手動開啟 EXE 仍會顯示管理視窗；免安裝資料夾移動後請手動開啟一次，更新啟動路徑。
 - **結束**：視窗右上角的 × 會收起管理視窗並繼續監控。要完全停止，按「結束程式」或使用固定管理圖示的右鍵選單。

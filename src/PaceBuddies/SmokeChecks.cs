@@ -291,6 +291,14 @@ internal static class SmokeChecks
                     while(!AnyHit(desktopHandle,boundPosition)&&desktopExposure.ElapsedMilliseconds<2000)await Task.Delay(50);
                     Check("Desktop-bound buddy survives Show Desktop",IsWindowVisible(desktopHandle)&&GetParent(desktopHandle)==actualHost);
                     Check("Desktop-bound buddy renders above desktop surface",AnyHit(desktopHandle,boundPosition));
+                    var pixelPoint=desktop.PointToScreen(new Point(desktop.Width/2,config.Size/2.0));
+                    var pixelWait=Stopwatch.StartNew();uint desktopPixel;
+                    do{DwmFlush();desktopPixel=ReadScreenPixel((int)Math.Round(pixelPoint.X),(int)Math.Round(pixelPoint.Y));if(desktopPixel==0x77B6F5)break;await Task.Delay(50);}while(pixelWait.ElapsedMilliseconds<2000);
+                    File.WriteAllText(Path.Combine(output,"desktop-pixels.json"),JsonSerializer.Serialize(new{BoundPixel=desktopPixel,Expected=0x77B6F5u,NativeHit=AnyHit(desktopHandle,boundPosition)},new JsonSerializerOptions{WriteIndented=true}));
+                    Check("Desktop-bound GIF pixels appear above wallpaper",desktopPixel==0x77B6F5);
+                    coordinator.EditExternally(()=>{config.BindDesktop=false;config.Topmost=false;});await Task.Delay(100);DwmFlush();
+                    Check("Non-topmost detach restores pixels above desktop",!desktop.IsDesktopBound&&!desktop.Topmost&&ReadScreenPixel((int)Math.Round(pixelPoint.X),(int)Math.Round(pixelPoint.Y))==0x77B6F5);
+                    coordinator.EditExternally(()=>{config.BindDesktop=true;config.Topmost=true;});await Task.Delay(100);
                     Capture(desktop,Path.Combine(output,"desktop-bound-buddy.png"));
                 }
                 finally{shell.UndoMinimizeAll();Marshal.FinalReleaseComObject(shell);manager.Reopen();}
@@ -414,6 +422,11 @@ internal static class SmokeChecks
                 if(WindowFromPoint(new NativePoint(x,y))==window)return true;
         return false;
     }
+    private static uint ReadScreenPixel(int x,int y)
+    {
+        var dc=GetDC(IntPtr.Zero);
+        try{return GetPixel(dc,x,y);}finally{ReleaseDC(IntPtr.Zero,dc);}
+    }
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T:DependencyObject
     {
         for(var i=0;i<VisualTreeHelper.GetChildrenCount(root);i++)
@@ -436,4 +449,8 @@ internal static class SmokeChecks
     [StructLayout(LayoutKind.Sequential)] private readonly record struct NativePoint(int X,int Y);
     [DllImport("user32.dll")] private static extern IntPtr WindowFromPoint(NativePoint point);
     [DllImport("user32.dll",SetLastError=true)] private static extern bool GetCursorPos(out NativePoint point);
+    [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr window);
+    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr window,IntPtr dc);
+    [DllImport("gdi32.dll")] private static extern uint GetPixel(IntPtr dc,int x,int y);
+    [DllImport("dwmapi.dll")] private static extern int DwmFlush();
 }
