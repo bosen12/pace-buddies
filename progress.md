@@ -52,3 +52,11 @@
 - 53 Core checks and 84 normal/84 background packaged Windows checks pass with no skipped checks. Verified normal/maximized visibility, borderless fullscreen hide, return and repeated transitions. Read-only review found no important issue.
 - Gracefully exited 0.4.0 through its own UI Automation Exit action; started 0.4.1 process81808. Verified all four buddy configs unchanged, GIF paths valid, startup preference preserved/path updated and actual status shows strip active.
 - This addresses a reproduced cause; other intermittent shell/space causes can now be distinguished from log/status, without recording other-app titles/content.
+
+## Application/window opening flicker0.4.2
+- User clarified all applications/windows can trigger a short disappearance; screenshot shows taskbar present. Measured0.4.1 fullscreen hide logs during launches and a native taskbar-ahead-of-strip interval.
+- Require actual fullscreen foreground occlusion of taskbar, not client dimensions alone. Add coalesced native foreground/reorder/taskbar-location notifications with safe lifetime, object filtering and own-process exclusion; retain fallback polling. Avoid redundant SetWindowPos writes.
+- Proved separate red failures with guard removed and hooks disabled; restored fixes. Helper verifies SetWindowPos/exit success, with a timeout. Critical HWND checks run even when native foreground activation is unavailable.
+- Final53 Core and88 normal/88 background packaged Windows checks pass, no skips, build0 warnings/errors. Read-only review found no important concerns.
+- Gracefully replaced0.4.1 with0.4.2 process65076. User reduced roster to one buddy while work was ongoing; preserved that latest configuration exactly and retained startup preference/path.
+- Live five-window launch observation after activation recorded no hidden sample and no sampled taskbar-ahead state. Added evidence under artifacts/launch-release; this is finite testing rather than an all-environment claim.

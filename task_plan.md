@@ -4,10 +4,10 @@
 Deliver a usable native Windows app with independent animated resource buddies in the system tray and on the desktop, arbitrary GIF import, and a distinctive Traditional Chinese manager.
 
 ## Next Step
-0.4.1 delivered and activated; taskbar visibility regression verified, existing buddy and startup preferences preserved.
+0.4.2 delivered and active; native launch-surface and reorder regressions pass, settings/startup preserved.
 
 ## Current Phase
-Taskbar visibility correction (complete)
+Application launch flicker (complete)
 
 ## Phases
 1. Design and upstream evaluation — complete.
@@ -20,6 +20,8 @@ Taskbar visibility correction (complete)
 8. Fix audited backup/import/retention bugs; bounded shared GIF decoding, asynchronous startup, idle animation suspension and login startup — complete.
 
 9. Correct outer-window fullscreen false positives and record bounded visibility transitions — complete.
+
+10. Follow actual taskbar occlusion and react to native reorder/foreground/location events — complete.
 
 ## Decisions
 - User authorized autonomous design and implementation on 2026-10-19; no further design approval is required.

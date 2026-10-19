@@ -35,6 +35,19 @@ internal static class SmokeChecks
             Check("Actual window lies left of the hidden-icons chevron",anchor!=null&&dockRect.Right<=anchor.Notification.Left-2&&dockRect.Top>=anchor.Bar.Top&&dockRect.Bottom<=anchor.Bar.Bottom);
             Check("Actual window avoids active task buttons",anchor!=null&&dockRect.Left>=anchor.OccupiedRight);
             var monitorBounds=System.Windows.Forms.Screen.FromHandle(anchor!.Handle).Bounds;
+            var coverageProbe=new Window{WindowStyle=WindowStyle.None,ResizeMode=ResizeMode.NoResize,ShowActivated=false,ShowInTaskbar=false};
+            try
+            {
+                coverageProbe.Show();var coverageHandle=new WindowInteropHelper(coverageProbe).Handle;
+                SetWindowPos(coverageHandle,IntPtr.Zero,monitorBounds.Left,monitorBounds.Top,monitorBounds.Width,monitorBounds.Height,0x4|0x10);
+                var screen=new PixelRect(monitorBounds.Left,monitorBounds.Top,monitorBounds.Right,monitorBounds.Bottom);
+                Check("Monitor-sized launch surface behind taskbar cannot hide buddies",!NativeTaskbarLocator.IsOccludingFullscreen(coverageHandle,anchor.Handle,screen));
+                coverageProbe.Topmost=true;
+                Check("Fullscreen above taskbar is recognized as occluding it",NativeTaskbarLocator.IsOccludingFullscreen(coverageHandle,anchor.Handle,screen));
+                coverageProbe.Hide();
+                Check("Hidden launch surface cannot hide taskbar buddies",!NativeTaskbarLocator.IsOccludingFullscreen(coverageHandle,anchor.Handle,screen));
+            }
+            finally{coverageProbe.Close();}
             var ordinary=new Window{Title="Pace Buddies · visibility regression",Width=600,Height=400,ShowActivated=false,ShowInTaskbar=false};
             try
             {
@@ -49,25 +62,33 @@ internal static class SmokeChecks
                     dock.RefreshAnchor();Check("Bordered normal application does not hide strip",dock.IsVisible);
                     ordinary.WindowState=WindowState.Maximized;await Task.Delay(80);
                     Check("Normal maximized application keeps strip visible",NativeTaskbarLocator.Locate()?.Visible==true);
-                    var fullscreen=new Window{Title="Pace Buddies · fullscreen regression",WindowStyle=WindowStyle.None,ResizeMode=ResizeMode.NoResize,ShowActivated=false,ShowInTaskbar=false};
+                    var fullscreen=new Window{Title="Pace Buddies · fullscreen regression",WindowStyle=WindowStyle.None,ResizeMode=ResizeMode.NoResize,ShowActivated=false,ShowInTaskbar=false,Left=monitorBounds.Left/anchor.Scale,Top=monitorBounds.Top/anchor.Scale,Width=monitorBounds.Width/anchor.Scale,Height=monitorBounds.Height/anchor.Scale};
                     try
                     {
                         fullscreen.Show();var fullscreenHandle=new WindowInteropHelper(fullscreen).Handle;
                         SetWindowPos(fullscreenHandle,IntPtr.Zero,monitorBounds.Left,monitorBounds.Top,monitorBounds.Width,monitorBounds.Height,0x4|0x10);
+                        fullscreen.Topmost=true;
                         fullscreen.Activate();await Task.Delay(80);
                         if(GetForegroundWindow()==fullscreenHandle)
                         {
-                            Check("True fullscreen client temporarily hides buddies",NativeTaskbarLocator.Locate() is {Visible:false,HiddenReason:TaskbarHiddenReason.Fullscreen});
-                            dock.RefreshAnchor();Check("Fullscreen hide is applied to native strip",!dock.IsVisible);
-                            ordinary.Activate();await Task.Delay(80);dock.RefreshAnchor();
-                            Check("Returning to a normal application restores strip",GetForegroundWindow()==ordinaryHandle&&dock.IsVisible);
+                            SetWindowPos(fullscreenHandle,new IntPtr(-1),0,0,0,0,0x13);
+                            GetWindowRect(fullscreenHandle,out var fullBounds);
+                            File.WriteAllText(Path.Combine(output,"fullscreen-observation.json"),JsonSerializer.Serialize(new{Foreground=GetForegroundWindow().ToInt64(),Expected=fullscreenHandle.ToInt64(),FullBounds=fullBounds,Above=IsWindowAbove(fullscreenHandle,anchor.Handle),Native=NativeTaskbarLocator.Locate()?.ToString()},new JsonSerializerOptions{WriteIndented=true}));
+                            var fullAnchor=NativeTaskbarLocator.Locate();
+                            dock.RefreshAnchor();
+                            if(fullAnchor is {Visible:false,HiddenReason:TaskbarHiddenReason.Fullscreen})
+                                Check("Actual fullscreen occlusion hides the native strip",!dock.IsVisible);
+                            else
+                                Check("Shell-visible taskbar keeps native strip over a monitor-sized client",fullAnchor?.Visible==true&&dock.IsVisible);
+                            fullscreen.Topmost=false;ordinary.Activate();await Task.Delay(80);dock.RefreshAnchor();
+                            Check("Returning to a normal application restores strip",dock.IsVisible);
                             var stable=true;
                             for(var cycle=0;cycle<3;cycle++)
                             {
-                                fullscreen.Activate();await Task.Delay(40);dock.RefreshAnchor();stable&=GetForegroundWindow()==fullscreenHandle&&!dock.IsVisible;
-                                ordinary.Activate();await Task.Delay(40);dock.RefreshAnchor();stable&=GetForegroundWindow()==ordinaryHandle&&dock.IsVisible;
+                                fullscreen.Topmost=false;fullscreen.Activate();await Task.Delay(40);dock.RefreshAnchor();stable&=dock.IsVisible;
+                                ordinary.Activate();await Task.Delay(40);dock.RefreshAnchor();stable&=dock.IsVisible;
                             }
-                            Check("Repeated fullscreen and normal switches restore reliably",stable);
+                            Check("Repeated launch surfaces behind visible taskbar do not blink",stable);
                         }
                         else skipped.Add("Fullscreen foreground activation requires an interactive desktop.");
                     }
@@ -77,6 +98,19 @@ internal static class SmokeChecks
             }
             finally{ordinary.Close();}
             dock.RefreshAnchor();
+            var eventProbe=new TaskbarBuddyWindow(_=>{},action=>action(),TimeSpan.FromSeconds(30));
+            try
+            {
+                eventProbe.Synchronize([coordinator.Buddies[0]]);
+                var probeHandle=new WindowInteropHelper(eventProbe).Handle;
+                var childInfo=new ProcessStartInfo(Environment.ProcessPath!){UseShellExecute=false,CreateNoWindow=true};
+                childInfo.ArgumentList.Add("--taskbar-raise-probe");
+                using var child=Process.Start(childInfo)!;
+                await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));await Task.Delay(100);
+                Check("Native taskbar raise helper completed successfully",child.ExitCode==0);
+                Check("Taskbar reorder restores strip without waiting for polling",eventProbe.IsVisible&&!IsWindowAbove(anchor.Handle,probeHandle));
+            }
+            finally{eventProbe.Close();dock.RefreshAnchor();}
             if(interactiveDesktop)Check("Fixed strip is on screen above taskbar surface",WindowFromPoint(new NativePoint((dockRect.Left+dockRect.Right)/2,(dockRect.Top+dockRect.Bottom)/2))==new WindowInteropHelper(dock).Handle);
             else skipped.Add("On-screen hit testing requires an accessible input desktop; native bounds and app rendering still verified.");
             var scroll=Descendants<System.Windows.Controls.ScrollViewer>(dock).Single();
@@ -281,6 +315,20 @@ internal static class SmokeChecks
         var bitmap=new RenderTargetBitmap((int)element.ActualWidth,(int)element.ActualHeight,96,96,PixelFormats.Pbgra32);bitmap.Render(element);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var stream=File.Create(path);encoder.Save(stream);
     }
+    internal static void RaiseTaskbarForProbe()
+    {
+        var bar=FindWindow("Shell_TrayWnd",null);
+        if(bar==IntPtr.Zero){Environment.ExitCode=1;return;}
+        if(!SetWindowPos(bar,new IntPtr(-1),0,0,0,0,0x13)){Environment.ExitCode=2;return;}
+        NotifyWinEvent(0x8004,GetDesktopWindow(),0,0);
+    }
+    private static bool IsWindowAbove(IntPtr candidate,IntPtr target)
+    {
+        var window=GetWindow(target,3);
+        for(var count=0;window!=IntPtr.Zero&&count<512;count++,window=GetWindow(window,3))
+            if(window==candidate)return true;
+        return false;
+    }
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T:DependencyObject
     {
         for(var i=0;i<VisualTreeHelper.GetChildrenCount(root);i++)
@@ -294,6 +342,10 @@ internal static class SmokeChecks
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window,out PixelRect rect);
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr window,IntPtr after,int x,int y,int width,int height,uint flags);
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll",CharSet=CharSet.Unicode)] private static extern IntPtr FindWindow(string? name,string? title);
+    [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr window,uint command);
+    [DllImport("user32.dll")] private static extern IntPtr GetDesktopWindow();
+    [DllImport("user32.dll")] private static extern void NotifyWinEvent(uint kind,IntPtr window,int objectId,int childId);
     [StructLayout(LayoutKind.Sequential)] private readonly record struct NativePoint(int X,int Y);
     [DllImport("user32.dll")] private static extern IntPtr WindowFromPoint(NativePoint point);
     [DllImport("user32.dll",SetLastError=true)] private static extern bool GetCursorPos(out NativePoint point);

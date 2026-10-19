@@ -35,18 +35,27 @@ public static class NativeTaskbarLocator
         visible&=intersectionHeight>=rect.Height*.75;
         var reason=visible?TaskbarHiddenReason.None:TaskbarHiddenReason.AutoHidden;
         var foreground=GetForegroundWindow();
-        if(foreground!=IntPtr.Zero&&foreground!=bar)
-        {
-            var name=new StringBuilder(256);GetClassName(foreground,name,name.Capacity);
-            if(name.ToString() is not ("Progman" or "WorkerW" or "Shell_TrayWnd")&&GetClientRect(foreground,out var client))
-            {
-                var origin=new NativePoint(client.Left,client.Top);
-                if(ClientToScreen(foreground,ref origin)
-                    &&FullscreenDetection.CoversMonitor(new(origin.X,origin.Y,origin.X+client.Width,origin.Y+client.Height),new(monitor.Left,monitor.Top,monitor.Right,monitor.Bottom)))
-                {visible=false;reason=TaskbarHiddenReason.Fullscreen;}
-            }
-        }
+        if(IsOccludingFullscreen(foreground,bar,new(monitor.Left,monitor.Top,monitor.Right,monitor.Bottom)))
+        {visible=false;reason=TaskbarHiddenReason.Fullscreen;}
         return new(bar,rect,tray,occupied,scale,visible){HiddenReason=reason};
+    }
+    internal static bool IsOccludingFullscreen(IntPtr foreground,IntPtr bar,PixelRect monitor)
+    {
+        if(foreground==IntPtr.Zero||foreground==bar||!IsWindowVisible(foreground))return false;
+        var name=new StringBuilder(256);GetClassName(foreground,name,name.Capacity);
+        if(name.ToString() is "Progman" or "WorkerW" or "Shell_TrayWnd"||!GetClientRect(foreground,out var client))return false;
+        var origin=new NativePoint(client.Left,client.Top);
+        return ClientToScreen(foreground,ref origin)
+            &&FullscreenDetection.CoversMonitor(new(origin.X,origin.Y,origin.X+client.Width,origin.Y+client.Height),monitor)
+            &&IsAbove(foreground,bar);
+    }
+    internal static bool IsAbove(IntPtr candidate,IntPtr target)
+    {
+        // A monitor-sized launch surface is not covering a taskbar that is above it.
+        var current=GetWindow(target,3);
+        for(var count=0;current!=IntPtr.Zero&&count<512;count++,current=GetWindow(current,3))
+            if(current==candidate)return true;
+        return false;
     }
     private delegate bool EnumWindow(IntPtr handle,IntPtr data);
     [DllImport("user32.dll",CharSet=CharSet.Unicode,EntryPoint="FindWindowW")] private static extern IntPtr FindWindow(string name,string? title);
@@ -60,4 +69,5 @@ public static class NativeTaskbarLocator
     [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr handle);
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr handle);
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr handle,uint command);
 }

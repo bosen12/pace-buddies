@@ -20,6 +20,7 @@ public sealed class TaskbarBuddyWindow : Window
     private readonly DispatcherTimer tracker=new(){Interval=TimeSpan.FromMilliseconds(500)};
     private readonly Action<BuddyRuntime> open;
     private readonly Action<Action> edit;
+    private readonly TaskbarWindowEvents windowEvents;
     private BuddyRuntime[] buddies=[];
     private string layoutKey="";
     private string status="";
@@ -27,7 +28,7 @@ public sealed class TaskbarBuddyWindow : Window
     public int BuddyCount=>buddies.Length;
     public string Status=>status;
     public event Action<string>? StatusChanged;
-    public TaskbarBuddyWindow(Action<BuddyRuntime> open,Action<Action> edit)
+    public TaskbarBuddyWindow(Action<BuddyRuntime> open,Action<Action> edit,TimeSpan? pollingInterval=null)
     {
         this.open=open;this.edit=edit;
         Title="Pace Buddies · 工作列角色";WindowStyle=WindowStyle.None;AllowsTransparency=true;Background=Brushes.Transparent;
@@ -44,8 +45,10 @@ public sealed class TaskbarBuddyWindow : Window
             var style=GetWindowLongPtr(handle,-20).ToInt64();
             SetWindowLongPtr(handle,-20,new IntPtr(style|0x80|0x08000000));
         };
+        tracker.Interval=pollingInterval??TimeSpan.FromMilliseconds(500);
         tracker.Tick+=(_,_)=>RefreshAnchor();tracker.Start();
-        Closed+=(_,_)=>tracker.Stop();
+        windowEvents=new(Dispatcher,RefreshAnchor);
+        Closed+=(_,_)=>{tracker.Stop();windowEvents.Dispose();};
     }
     public void Synchronize(IEnumerable<BuddyRuntime> values)
     {
@@ -68,7 +71,9 @@ public sealed class TaskbarBuddyWindow : Window
         var r=placement.Bounds;
         Width=r.Width/anchor.Scale;Height=r.Height/anchor.Scale;
         if(!IsVisible){Left=r.Left/anchor.Scale;Top=r.Top/anchor.Scale;Show();}
-        SetWindowPos(new WindowInteropHelper(this).Handle,new IntPtr(-1),r.Left,r.Top,r.Width,r.Height,0x10|0x40);
+        var handle=new WindowInteropHelper(this).Handle;
+        if(!GetWindowRect(handle,out var actual)||actual!=r||NativeTaskbarLocator.IsAbove(anchor.Handle,handle))
+            SetWindowPos(handle,new IntPtr(-1),r.Left,r.Top,r.Width,r.Height,0x10|0x40);
         SetStatus(placement.Scrollable?"GIF 保持完整高度；點左右箭頭或使用滾輪查看其他部分":"工作列角色固定在 ˄ 箭頭左側，GIF 依高度等比例展開");
     }
     private void BuildCells(TaskbarPlacement placement,double scale)
@@ -119,4 +124,5 @@ public sealed class TaskbarBuddyWindow : Window
     [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")] private static extern IntPtr GetWindowLongPtr(IntPtr handle,int index);
     [DllImport("user32.dll",EntryPoint="SetWindowLongPtrW")] private static extern IntPtr SetWindowLongPtr(IntPtr handle,int index,IntPtr value);
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr handle,IntPtr after,int x,int y,int width,int height,uint flags);
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr handle,out PixelRect rect);
 }

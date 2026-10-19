@@ -1,5 +1,18 @@
 # Release verification · 2026-10-19
 
+## 0.4.2 opening-application flicker
+
+- User clarified that opening any application/window can briefly remove the GIF; supplied screenshot still shows the Windows taskbar. Real-profile0.4.1 log contained fullscreen hide/restore transitions during launch. Native polling also captured the taskbar briefly ahead of the visible overlay before the500ms fallback refreshed it.
+- A monitor-sized client now hides the strip only when that visible window is actually above the taskbar in native z-order. Hidden launch surfaces cannot hide buddies. When Windows keeps the taskbar ahead of an application, the buddy strip remains present.
+- Dispatcher-owned out-of-context foreground/reorder/taskbar-location hooks request a coalesced Render update. Own-process events are excluded; non-window accessibility objects are ignored except shell/Desktop client events. Closing the strip unhooks listeners and pending callbacks check disposal. The500ms fallback remains for shell restart/missed events.
+- Native SetWindowPos runs only for changed physical bounds or when the taskbar is above the overlay, avoiding redundant topmost writes on unrelated events.
+- Distinct RED evidence: removing taskbar occlusion guard fails `artifacts/launch-occlusion-red/smoke-result.json`; disabling hooks fails `artifacts/launch-events-red-3/smoke-result.json`. The separate helper succeeds in raising the taskbar; a test strip with30s fallback polling must return above it by100ms after helper completion. Helper exit/API failure and timeout are checked.
+- Critical HWND-based occlusion tests always execute regardless of foreground activation permission. Native foreground scenarios now follow actual shell coverage: an activated borderless window is not assumed to cover a taskbar which Windows itself has raised above it.
+- Release build: **0 warnings/errors**, **53 Core checks passed**. Packaged **88 normal +88 background Windows checks passed, no skips**, including launch-surface repetition and event restoration. Read-only review found no important issue.
+- Activated **0.4.2.0 process65076** through the prior app's own Exit action. Preserved the user's latest **one-buddy** configuration exactly and retained startup preference, updating its existing enabled path to0.4.2.
+- Repeated the live observer with five independent test windows after activation: no hidden sample and no sampled taskbar-ahead-of-buddy state (`artifacts/launch-release/live-window-launch-check.json`). This is a finite observed launch sequence, not a guarantee about every compositor/driver transition.
+- Evidence: `artifacts/launch-release/`, `artifacts/launch-background-release/`, `artifacts/launch-foreground-after.json`.
+
 ## 0.4.1 taskbar visibility correction
 
 - User reports intermittent disappearance while operating other apps; whether the Windows taskbar also hides is unknown. Found and reproduced one concrete cause rather than assuming it covers every instance.

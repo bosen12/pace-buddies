@@ -15,6 +15,8 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if(e.Args.Length==1&&e.Args[0]=="--taskbar-raise-probe")
+        {SmokeChecks.RaiseTaskbarForProbe();Shutdown();return;}
         var smoke=e.Args.Length>=2&&(e.Args[0]=="--smoke-test"||e.Args[0]=="--background-smoke-test");
         var background=e.Args.Contains("--background")||(smoke&&e.Args[0]=="--background-smoke-test");
         var data=smoke?Path.Combine(Path.GetFullPath(e.Args[1]),"isolated-data"):Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"PaceBuddies");

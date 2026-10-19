@@ -21,3 +21,9 @@
 - GetWindowRect contains nonclient borders/title bars; monitor-sized outer bounds do not prove fullscreen. Reproduced false hide with a real bordered foreground window against the original native locator.
 - ClientToScreen + GetClientRect matches true content coverage; compare all four monitor edges within2px rather than any window containing the monitor. This excludes ordinary maximized and cross-monitor spanning windows.
 - Verified fullscreen restoration through actual native foreground changes and repeated cycles. A bounded status log distinguishes fullscreen, shell autohide, missing locator and space shortage for future intermittent reports.
+
+## Launch transitions and shell z-order
+- Client bounds alone still do not establish that a fullscreen-sized surface covers the taskbar. Windows can keep the taskbar above it, including during window activation; only hide when the visible candidate is actually above the taskbar.
+- A500ms anchor timer permits a brief shell-over-overlay interval after Explorer raises the taskbar. Native out-of-context events can refresh promptly; filter accessibility subobjects, coalesce on the dispatcher, skip own events, and avoid repeated SetWindowPos calls unless geometry/layering actually needs repair.
+- Native tests must distinguish a borderless full-monitor window from actual taskbar occlusion. Windows may raise its taskbar during activation; observed foreground identity and client geometry can remain unchanged while z-order differs.
+- Disabling event hooks with30s polling reliably reproduces delayed layer restoration; reinstating hooks passes with a separate native helper. 0.4.2 live repeated-window check recorded no hidden samples.
