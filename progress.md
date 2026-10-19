@@ -25,3 +25,14 @@
 - Final 0.2.0 portable build: 0 warnings/errors; 33 Core + 40 packaged Windows checks passed. Actual strip x1505–1619, notification area begins x1623, app buttons end x1028; on-screen z-order and no-activate confirmed.
 - Read-only review found no blocking defects. Documentation now covers fixed placement, non-reservation, unsupported/no-space fallback and Windows 10 validation limits.
 - Invoked the old app's own Exit button through its UI Automation interface, confirming graceful exit and settings save; launched dist/PaceBuddies-0.2.0-win-x64/PaceBuddies.exe with existing user data.
+
+## Height-first GIFs
+- User requests GIF height to fill the available area. Added natural aspect-ratio widths in taskbar, desktop and habitat preview; numeric labels sit beside taskbar images.
+- Taskbar overflow retains full-height images in a horizontal viewport with arrows and wheel scrolling. Wide desktop canvases are bounded by the destination monitor with wheel scrolling.
+- Red-green regression: previous sizing failed 'wide GIF fills taskbar height'; 39 Core checks now pass.
+- Wide GIF fixture initially assigned transparency to the body palette color; corrected with an explicit indexed palette and added opaque-pixel verification.
+- Isolated Windows integration verifies full height, width ratio, label independence and scroll reachability. The remote input desktop is inaccessible; on-screen hit testing is explicitly skipped, not reported passed.
+- Read-only review found oversized desktop viewports after restoring/dragging onto a smaller monitor. Recompute bounds after position/drag and on monitor/DPI/display changes, selecting the monitor from the destination origin.
+- Final self-contained 0.3.0: 39 Core checks and 50 Windows integration checks passed; one on-screen hit-test explicitly skipped because input-desktop access is unavailable. Build has 0 warnings/errors.
+- Reviewed app-rendered wide GIF output and overflow viewport; both preserve full height and natural ratio. A 64:1 desktop panorama stays screen-bounded and remains scrollable to its right edge.
+- Used the prior app's own Exit action to save settings and close cleanly, then launched dist/PaceBuddies-0.3.0-win-x64/PaceBuddies.exe. Existing user settings/GIF files preserved. No process force-kill or security setting changes.

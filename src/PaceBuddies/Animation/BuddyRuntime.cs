@@ -18,6 +18,7 @@ public sealed class BuddyRuntime : INotifyPropertyChanged,IDisposable
     public string SpeedText => Config.Paused ? "已暫停" : $"{CurrentSpeed:0.00}×";
     public string Detail => $"{SourceName} · {Reading}  /  {SpeedText}";
     public string AssetDetail => Asset.Description;
+    public double PreviewWidth=>106*Asset.AspectRatio;
     public BitmapScalingMode ScalingMode => Asset.PixelArt?BitmapScalingMode.NearestNeighbor:BitmapScalingMode.HighQuality;
     public string? Warning { get; private set; }
     public double CurrentSpeed { get; private set; }
@@ -41,7 +42,7 @@ public sealed class BuddyRuntime : INotifyPropertyChanged,IDisposable
     public void ReplaceAsset(AnimationAsset asset)
     {
         var old=Asset; Asset=asset; FrameIndex=0; clock=new(asset.Delays); Warning=null;
-        Changed(nameof(Frame)); Changed(nameof(AssetDetail)); Changed(nameof(ScalingMode)); old.Dispose();
+        Changed(nameof(Frame)); Changed(nameof(AssetDetail)); Changed(nameof(ScalingMode)); Changed(nameof(PreviewWidth)); old.Dispose();
     }
     public void SetSample(MetricSnapshot sample) { usage=sample.Get(Config.Source); Changed(nameof(Reading)); Changed(nameof(Detail)); }
     public bool Advance(double elapsed)

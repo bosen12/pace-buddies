@@ -15,7 +15,8 @@ internal static class SmokeChecks
 {
     public static async Task Run(RuntimeCoordinator coordinator,MainWindow manager,string output)
     {
-        Directory.CreateDirectory(output);var results=new List<string>();var watch=Stopwatch.StartNew();
+        Directory.CreateDirectory(output);var results=new List<string>();var skipped=new List<string>();var watch=Stopwatch.StartNew();
+        var interactiveDesktop=GetCursorPos(out _);
         void Check(string name,bool value){if(!value)throw new InvalidOperationException(name);results.Add(name);}
         try
         {
@@ -31,8 +32,11 @@ internal static class SmokeChecks
             GetWindowRect(new WindowInteropHelper(dock).Handle,out var dockRect);
             Check("Actual window lies left of the hidden-icons chevron",anchor!=null&&dockRect.Right<=anchor.Notification.Left-2&&dockRect.Top>=anchor.Bar.Top&&dockRect.Bottom<=anchor.Bar.Bottom);
             Check("Actual window avoids active task buttons",anchor!=null&&dockRect.Left>=anchor.OccupiedRight);
-            Check("Fixed strip is on screen above taskbar surface",WindowFromPoint(new NativePoint((dockRect.Left+dockRect.Right)/2,(dockRect.Top+dockRect.Bottom)/2))==new WindowInteropHelper(dock).Handle);
-            ((System.Windows.Controls.Border)((System.Windows.Controls.StackPanel)dock.Content).Children[1]).RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice,Environment.TickCount,System.Windows.Input.MouseButton.Left){RoutedEvent=UIElement.MouseLeftButtonUpEvent});
+            if(interactiveDesktop)Check("Fixed strip is on screen above taskbar surface",WindowFromPoint(new NativePoint((dockRect.Left+dockRect.Right)/2,(dockRect.Top+dockRect.Bottom)/2))==new WindowInteropHelper(dock).Handle);
+            else skipped.Add("On-screen hit testing requires an accessible input desktop; native bounds and app rendering still verified.");
+            var scroll=Descendants<System.Windows.Controls.ScrollViewer>(dock).Single();
+            var cells=(System.Windows.Controls.StackPanel)scroll.Content;
+            ((System.Windows.Controls.Border)cells.Children[1]).RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice,Environment.TickCount,System.Windows.Input.MouseButton.Left){RoutedEvent=UIElement.MouseLeftButtonUpEvent});
             Check("Clicking a fixed buddy opens its own settings",ReferenceEquals(((System.Windows.Controls.ListBox)manager.FindName("Roster")).SelectedItem,coordinator.Buddies[1]));
             manager.OpenBuddy(coordinator.Buddies[0]);
             Check("Original pixel sprites have eight distinct animation frames",coordinator.Buddies.All(b=>b.Asset.Frames.Length==8));
@@ -87,6 +91,45 @@ internal static class SmokeChecks
             Check("Disabling fixed buddies hides strip while retaining manager",!dock.IsVisible&&coordinator.TaskbarCount==0&&coordinator.ManagerTrayCount==1);
             coordinator.EditExternally(()=>{foreach(var b in coordinator.Buddies)b.Config.ShowTray=true;});
             Check("Fixed buddies can be restored",dock.IsVisible&&coordinator.TaskbarCount==3);
+            await manager.ImportGif(Path.Combine(output,"wide-fixture.gif"));
+            var widePixels=new FormatConvertedBitmap(coordinator.Buddies[0].Asset.Frames[0],PixelFormats.Bgra32,null,0);
+            var opaque=new byte[4];widePixels.CopyPixels(new Int32Rect(64,0,1,1),opaque,4,0);
+            Check("Wide GIF opaque body survives transparent decode",opaque[3]==255&&opaque[2]==245);
+            dock.RefreshAnchor();dock.UpdateLayout();await Task.Delay(100);
+            var wideImage=Descendants<System.Windows.Controls.Image>(dock).First();
+            var desktopImage=Descendants<System.Windows.Controls.Image>(desktop).Single();
+            Check("Wide GIF fills actual taskbar canvas height",Math.Abs(wideImage.ActualHeight-dock.ActualHeight)<1);
+            Check("Wide GIF expands actual image width proportionally",Math.Abs(wideImage.ActualWidth/wideImage.ActualHeight-4)<.01);
+            Check("Wide desktop GIF uses configured height and natural width",Math.Abs(desktopImage.Height-config.Size)<.01&&Math.Abs(desktopImage.Width/config.Size-4)<.01);
+            var labelHeight=wideImage.ActualHeight;
+            coordinator.EditExternally(()=>config.Label=LabelMode.Hidden);dock.UpdateLayout();
+            Check("Hiding numeric label does not change GIF height",Math.Abs(Descendants<System.Windows.Controls.Image>(dock).First().ActualHeight-labelHeight)<1);
+            coordinator.EditExternally(()=>config.Label=LabelMode.Always);dock.UpdateLayout();
+            Capture(dock,Path.Combine(output,"wide-taskbar-buddy.png"));Capture(desktop,Path.Combine(output,"wide-desktop-buddy.png"));
+            var extraWide=new List<BuddyRuntime>();
+            for(var i=0;i<7;i++)
+            {
+                var extra=coordinator.Add();extra.Config.GifPath=config.GifPath;extra.ReplaceAsset(GifLoader.Load(config.GifPath!));extra.Config.ShowDesktop=false;coordinator.Apply(extra);extraWide.Add(extra);
+            }
+            dock.RefreshAnchor();dock.UpdateLayout();await Task.Delay(100);
+            Check("Many wide GIFs use horizontal overflow without shrinking",dock.Placement?.Scrollable==true&&scroll.ScrollableWidth>0&&Descendants<System.Windows.Controls.Image>(dock).All(image=>Math.Abs(image.ActualHeight-labelHeight)<1));
+            var forward=Descendants<System.Windows.Controls.Button>(dock).Single(button=>Equals(button.Content,"›"));
+            forward.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));dock.UpdateLayout();
+            Check("Next arrow scrolls to reach overflow characters",scroll.HorizontalOffset>0);
+            Capture(dock,Path.Combine(output,"wide-overflow-buddies.png"));
+            scroll.ScrollToRightEnd();dock.UpdateLayout();
+            Check("Last overflow character remains reachable",Math.Abs(scroll.HorizontalOffset-scroll.ScrollableWidth)<1);
+            foreach(var extra in extraWide)coordinator.Remove(extra);
+            await manager.ImportGif(Path.Combine(output,"panorama-fixture.gif"));
+            desktop.UpdateLayout();await Task.Delay(100);
+            var desktopViewport=Descendants<System.Windows.Controls.ScrollViewer>(desktop).Single();
+            var workArea=System.Windows.Forms.Screen.FromHandle(new WindowInteropHelper(desktop).Handle).WorkingArea;
+            GetWindowRect(new WindowInteropHelper(desktop).Handle,out var panoramaBounds);
+            Check("Panorama desktop viewport stays within monitor width",panoramaBounds.Width<=workArea.Width);
+            Check("Panorama desktop retains full image height with scrolling",Descendants<System.Windows.Controls.Image>(desktop).Single().Height==config.Size&&desktopViewport.ScrollableWidth>0);
+            desktopViewport.ScrollToRightEnd();desktop.UpdateLayout();
+            Check("Panorama desktop right edge remains reachable",Math.Abs(desktopViewport.HorizontalOffset-desktopViewport.ScrollableWidth)<1);
+            await manager.ImportGif(Path.Combine(output,"wide-fixture.gif"));
             while(coordinator.Snapshot.Cpu==null&&watch.Elapsed.TotalSeconds<12)await Task.Delay(200);
             Check("Real CPU telemetry is sampled",coordinator.Snapshot.Cpu is >=0 and <=100);
             Check("Real physical RAM telemetry is sampled",coordinator.Snapshot.Memory is >0 and <=100);
@@ -108,7 +151,7 @@ internal static class SmokeChecks
             Check("Small work area keeps footer inside window",footer.TranslatePoint(new Point(0,footer.ActualHeight),manager).Y<=manager.ActualHeight);
             Capture(desktop,Path.Combine(output,"desktop-buddy.png"));
             Capture(dock,Path.Combine(output,"fixed-taskbar-buddies.png"));
-            File.WriteAllText(Path.Combine(output,"smoke-result.json"),JsonSerializer.Serialize(new{Success=true,Checks=results,Taskbar=new{Bar=anchor?.Bar,Notification=anchor?.Notification,OccupiedRight=anchor?.OccupiedRight,Scale=anchor?.Scale},ActualTaskbarBounds=dockRect,Telemetry=coordinator.Snapshot,ElapsedSeconds=watch.Elapsed.TotalSeconds},new JsonSerializerOptions{WriteIndented=true}));
+            File.WriteAllText(Path.Combine(output,"smoke-result.json"),JsonSerializer.Serialize(new{Success=true,Checks=results,SkippedChecks=skipped,InteractiveDesktopAvailable=interactiveDesktop,Taskbar=new{Bar=anchor?.Bar,Notification=anchor?.Notification,OccupiedRight=anchor?.OccupiedRight,Scale=anchor?.Scale},ActualTaskbarBounds=dockRect,Telemetry=coordinator.Snapshot,ElapsedSeconds=watch.Elapsed.TotalSeconds},new JsonSerializerOptions{WriteIndented=true}));
         }
         catch(Exception ex)
         {File.WriteAllText(Path.Combine(output,"smoke-result.json"),JsonSerializer.Serialize(new{Success=false,Checks=results,Error=ex.ToString()},new JsonSerializerOptions{WriteIndented=true}));Environment.ExitCode=1;}
@@ -120,8 +163,18 @@ internal static class SmokeChecks
         var bitmap=new RenderTargetBitmap((int)element.ActualWidth,(int)element.ActualHeight,96,96,PixelFormats.Pbgra32);bitmap.Render(element);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var stream=File.Create(path);encoder.Save(stream);
     }
+    private static IEnumerable<T> Descendants<T>(DependencyObject root) where T:DependencyObject
+    {
+        for(var i=0;i<VisualTreeHelper.GetChildrenCount(root);i++)
+        {
+            var child=VisualTreeHelper.GetChild(root,i);
+            if(child is T match)yield return match;
+            foreach(var descendant in Descendants<T>(child))yield return descendant;
+        }
+    }
     [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")] private static extern IntPtr GetWindowLongPtr(IntPtr window,int index);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window,out PixelRect rect);
     [StructLayout(LayoutKind.Sequential)] private readonly record struct NativePoint(int X,int Y);
     [DllImport("user32.dll")] private static extern IntPtr WindowFromPoint(NativePoint point);
+    [DllImport("user32.dll",SetLastError=true)] private static extern bool GetCursorPos(out NativePoint point);
 }

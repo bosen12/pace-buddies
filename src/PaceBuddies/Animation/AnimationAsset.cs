@@ -13,6 +13,7 @@ public sealed class AnimationAsset : IDisposable
     public Icon[] TrayFrames { get; }
     public string Description { get; }
     public bool PixelArt { get; }
+    public double AspectRatio=>(double)Frames[0].PixelWidth/Frames[0].PixelHeight;
     public AnimationAsset(List<Bitmap> bitmaps,int[] delays,string description,bool pixelArt)
     {
         Description=description; Delays=delays; PixelArt=pixelArt;

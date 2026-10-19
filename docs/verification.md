@@ -1,5 +1,15 @@
 # Release verification · 2026-10-19
 
+## 0.3.0 height-first GIFs
+
+- 39 Core checks cover full taskbar canvas height, natural width for 4:1 and portrait images, equal height with labels, horizontal overflow and high-DPI geometry.
+- Final self-contained release: **50 Windows integration checks passed**, **1 on-screen hit test skipped**, exit 0. Build: **0 warnings, 0 errors**.
+- Windows integration adds a deterministic transparent 4:1 fixture, verifies opaque pixels, actual WPF image sizes, side-label height independence, scroll arrows, end-of-content reachability, and a 64:1 desktop panorama bounded by monitor width.
+- Read-only review identified monitor restoration/drag resizing for wide desktop viewports. Width is now recomputed after restore and drag, and on monitor/DPI/display changes, with monitor selection based on the destination origin rather than the oversized rectangle.
+- Remote input desktop is currently inaccessible. The on-screen hit-test check is explicitly recorded as skipped; native coordinates and app-rendered PNGs can still be verified. Rendered outputs are not screenshots of the whole Windows taskbar.
+- Final evidence: `artifacts/height-release-smoke/`.
+- Gracefully restarted the user app into the verified 0.3.0 executable; retained existing settings and GIFs. Mixed-DPI physical monitor transitions remain a wider live-validation boundary.
+
 ## 0.2.0 taskbar placement correction
 
 The animated characters are now in one transparent no-activate window immediately LEFT of the hidden-icons chevron. Only the static manager uses a notification icon. Existing settings and GIF paths are preserved.

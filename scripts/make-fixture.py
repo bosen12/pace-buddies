@@ -12,3 +12,18 @@ for i in range(3):
     frames.append(frame)
 frames[0].save(directory / "fixture.gif", save_all=True, append_images=frames[1:],
                duration=[100, 200, 300], loop=0, disposal=2, transparency=0)
+
+# Wide frames exercise height-first display without relying on a user's files.
+wide_frames = []
+for i in range(3):
+    frame = Image.new("P", (128, 32), 0)
+    frame.putpalette([0, 0, 0, 245, 182, 119, 32, 49, 74] + [0] * (768 - 9))
+    draw = ImageDraw.Draw(frame)
+    draw.rounded_rectangle((i * 2, 0, 123 + i * 2, 31), radius=6, fill=1)
+    draw.rectangle((12 + i * 2, 8, 15 + i * 2, 15), fill=2)
+    draw.rectangle((106 + i * 2, 8, 109 + i * 2, 15), fill=2)
+    wide_frames.append(frame)
+wide_frames[0].save(directory / "wide-fixture.gif", save_all=True, append_images=wide_frames[1:],
+                    duration=[100, 200, 300], loop=0, disposal=2, transparency=0, optimize=False)
+panorama = wide_frames[0].resize((2048, 32))
+panorama.save(directory / "panorama-fixture.gif", transparency=0, optimize=False)
