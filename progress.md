@@ -69,3 +69,10 @@
 - Initial background test failed its fixed350ms shell transition assertion; unchanged binary recheck passed. Replaced timing assumption with bounded actual-exposure wait; final both modes passed. Inspected manager/settings renders.
 - Gracefully exited0.4.2 using its own UI Automation Exit action and launched0.5.0 process62532. Latest roster had two buddies; all existing fields identical, both GIF paths valid, startup hidden preference preserved and Run command points to0.5.0. No error.log. Old configs retain default unbound desktop mode.
 - Local delivery dist/PaceBuddies-0.5.0-win-x64/PaceBuddies.exe and matching ZIP; public GitHub0.4.2 release unchanged.
+
+## Drag/recovery0.5.1 and requested GitHub publication
+- Reproduced ScrollViewer swallowing the GIF press, plus fast pointer sampling ahead of the down event. Use handledEventsToo, snapshot event-screen start before draft flush, apply event move/release points and reserve native polling for outside-HWND capture fallback.
+- Reproduced whole-app exit when closing a captured role caused LostMouseCapture→FinishGesture→Apply→Show during teardown. OnClosing now stops capture before teardown; deliberate captured-close/recreation regression passes. Scoped read-only review found no new important concern.
+- Core66 pass; final packaged normal107 pass with one OS-denied foreground-activation group skipped, background113 pass/no skips. Do not claim final physical-pointer validation: user stopped Computer Use. Invalid targeted SendMessage replay was diagnosed and removed; event capture/release and native lifecycle tests retained.
+- Right-corner disappearance investigation found process38896 running stale fixed entry0.1.0. Restored0.5.0 first, then updated fixed entry to0.5.1 and started process94100. Latest two-buddy fields unchanged; GIFs valid; existing login startup updated to fixed entry; no real-profile error.log; strip status active.
+- User explicitly requested GitHub publication of this revision. Release notes and README downloads updated to0.5.1; EXE/ZIP/SHA256 assets prepared. Public upload in progress.

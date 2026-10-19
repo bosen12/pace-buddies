@@ -58,15 +58,19 @@ public sealed class DesktopBuddyWindow : Window
         Grid.SetRowSpan(editOutline,2);panel.Children.Add(editOutline);
         resizeGrip=new Border{Width=24,Height=24,CornerRadius=new CornerRadius(6),Background=new SolidColorBrush(Color.FromArgb(235,234,242,252)),BorderBrush=new SolidColorBrush(Color.FromRgb(57,118,185)),BorderThickness=new Thickness(1),HorizontalAlignment=HorizontalAlignment.Right,VerticalAlignment=VerticalAlignment.Bottom,Cursor=Cursors.SizeNWSE,ToolTip="拖曳等比例縮放",Name="ResizeGrip",Child=new TextBlock{Text="↘",Foreground=new SolidColorBrush(Color.FromRgb(57,118,185)),FontSize=16,HorizontalAlignment=HorizontalAlignment.Center,VerticalAlignment=VerticalAlignment.Center}};
         Grid.SetRowSpan(resizeGrip,2);panel.Children.Add(resizeGrip);Content=panel;
-        resizeGrip.PreviewMouseLeftButtonDown+=(_,e)=>{BeginGesture(Gesture.Resize);e.Handled=true;};
+        resizeGrip.PreviewMouseLeftButtonDown+=(_,e)=>{BeginGesture(Gesture.Resize,e);e.Handled=true;};
         MouseEnter+=(_,_)=>UpdateChrome();MouseLeave+=(_,_)=>UpdateChrome();
-        MouseLeftButtonDown+=(_,e)=>
+        // ScrollViewer handles the GIF's bubbling press. Receive handled presses too,
+        // while leaving the resize grip's preview-started gesture intact.
+        AddHandler(MouseLeftButtonDownEvent,new MouseButtonEventHandler((_,e)=>
         {
-            if(e.ClickCount==2){open();return;}
-            BeginGesture(Gesture.Move);
-        };
-        MouseMove+=(_,_)=>UpdateGesture();
-        PreviewMouseLeftButtonUp+=(_,e)=>{if(gesture!=Gesture.None){FinishGesture();e.Handled=true;}};
+            if(gesture!=Gesture.None)return;
+            if(e.ClickCount==2){open();e.Handled=true;return;}
+            BeginGesture(Gesture.Move,e);
+            if(gesture!=Gesture.None)e.Handled=true;
+        }),true);
+        MouseMove+=(_,e)=>{if(gesture!=Gesture.None&&!closed)UpdateGesture(EventScreenPoint(e));};
+        PreviewMouseLeftButtonUp+=(_,e)=>{if(gesture!=Gesture.None){UpdateGesture(EventScreenPoint(e));FinishGesture();e.Handled=true;}};
         LostMouseCapture+=(_,_)=>{if(gesture!=Gesture.None)FinishGesture();};
         PreviewMouseWheel+=(_,e)=>
         {
@@ -74,7 +78,7 @@ public sealed class DesktopBuddyWindow : Window
             e.Handled=true;
             ResizeDirectlyBy(Math.Sign(e.Delta)*8);
         };
-        gestureTimer.Tick+=(_,_)=>{if((GetAsyncKeyState(1)&0x8000)==0)FinishGesture();else UpdateGesture();};
+        gestureTimer.Tick+=(_,_)=>PollOutsideGesture();
         SourceInitialized+=(_,_)=>{layer=new(new WindowInteropHelper(this).Handle);ApplySettings();};
         Loaded+=(_,_)=>{Position();UpdateChrome();};
         var menu=new ContextMenu();
@@ -131,18 +135,34 @@ public sealed class DesktopBuddyWindow : Window
         }
         finally{applying=false;}
     }
-    private void BeginGesture(Gesture kind)
+    private NativePoint EventScreenPoint(MouseEventArgs e)
     {
-        if(!DesktopGeometry.CanManipulate(runtime.Config))return;
+        var point=PointToScreen(e.GetPosition(this));
+        return new NativePoint{X=(int)Math.Round(point.X),Y=(int)Math.Round(point.Y)};
+    }
+    private void BeginGesture(Gesture kind,MouseButtonEventArgs e)
+    {
+        if(closed||!DesktopGeometry.CanManipulate(runtime.Config))return;
+        var eventPoint=EventScreenPoint(e);
         externalEdit(()=>{});
-        if(closed||!DesktopGeometry.CanManipulate(runtime.Config)||!GetCursorPos(out startPointer))return;
+        if(closed||!DesktopGeometry.CanManipulate(runtime.Config))return;
+        startPointer=eventPoint;
         if(!GetWindowRect(new WindowInteropHelper(this).Handle,out startBounds))return;
         gesture=kind;lastPointer=startPointer;startSize=runtime.Config.Size;
         CaptureMouse();gestureTimer.Start();UpdateChrome();
     }
-    private void UpdateGesture()
+    private void PollOutsideGesture()
     {
-        if(gesture==Gesture.None||closed||!GetCursorPos(out var pointer))return;
+        if(gesture==Gesture.None||closed||!GetCursorPos(out var pointer)||!GetWindowRect(new WindowInteropHelper(this).Handle,out var bounds))return;
+        // Background/no-activate HWND capture may stop delivering outside the role.
+        // Inside it, use queued WPF event points exclusively to avoid sampling ahead.
+        if(pointer.X>=bounds.Left&&pointer.X<bounds.Right&&pointer.Y>=bounds.Top&&pointer.Y<bounds.Bottom)return;
+        UpdateGesture(pointer);
+        if((GetAsyncKeyState(1)&0x8000)==0)FinishGesture();
+    }
+    private void UpdateGesture(NativePoint pointer)
+    {
+        if(gesture==Gesture.None||closed)return;
         if(pointer.X==lastPointer.X&&pointer.Y==lastPointer.Y)return;
         lastPointer=pointer;
         var dx=pointer.X-startPointer.X;var dy=pointer.Y-startPointer.Y;
@@ -218,6 +238,14 @@ public sealed class DesktopBuddyWindow : Window
         });
     }
     private void OnDisplaySettingsChanged(object? sender,EventArgs e){if(!closed&&!Dispatcher.HasShutdownStarted)Dispatcher.BeginInvoke(QueueMonitorFit);}
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        // Capture can be lost during native teardown, before Closed fires.
+        // End the gesture first so it cannot reapply a closing HWND via the coordinator.
+        closed=true;StopGesture();shellTimer.Stop();
+        base.OnClosing(e);
+        if(e.Cancel){closed=false;ApplySettings();}
+    }
     protected override void OnDpiChanged(DpiScale oldDpi,DpiScale newDpi){base.OnDpiChanged(oldDpi,newDpi);QueueMonitorFit();}
     [StructLayout(LayoutKind.Sequential)] private struct NativePoint{public int X,Y;}
     [DllImport("user32.dll")] private static extern bool GetCursorPos(out NativePoint point);

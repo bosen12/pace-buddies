@@ -231,6 +231,16 @@ internal static class SmokeChecks
             Check("Native click-through style is enabled",(GetWindowLongPtr(new WindowInteropHelper(desktop).Handle,-20).ToInt64()&0x20)!=0);
             config.ClickThrough=false;coordinator.Apply(coordinator.Buddies[0]);
             Check("Native click-through style can be disabled",(GetWindowLongPtr(new WindowInteropHelper(desktop).Handle,-20).ToInt64()&0x20)==0);
+            var desktopDragImage=Descendants<System.Windows.Controls.Image>(desktop).Single();
+            var dragRoute=new List<string>();
+            foreach(var element in new UIElement[]{desktopDragImage,Descendants<System.Windows.Controls.ScrollViewer>(desktop).Single(),desktop})
+                element.AddHandler(UIElement.MouseLeftButtonDownEvent,new System.Windows.Input.MouseButtonEventHandler((sender,args)=>dragRoute.Add($"{sender.GetType().Name}: handled={args.Handled}, captured={desktop.IsMouseCaptured}")),true);
+            desktopDragImage.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice,Environment.TickCount,System.Windows.Input.MouseButton.Left){RoutedEvent=System.Windows.Input.Mouse.MouseDownEvent});
+            var imageDragCaptured=desktop.IsMouseCaptured;
+            File.WriteAllText(Path.Combine(output,"drag-route.json"),JsonSerializer.Serialize(new{Route=dragRoute,Captured=imageDragCaptured},new JsonSerializerOptions{WriteIndented=true}));
+            desktop.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice,Environment.TickCount,System.Windows.Input.MouseButton.Left){RoutedEvent=System.Windows.Input.Mouse.PreviewMouseUpEvent});
+            Check("Mouse press on GIF starts the drag gesture",imageDragCaptured);
+            Check("GIF release finishes its captured gesture",!desktop.IsMouseCaptured);
             var pendingDesktopName="保留桌面操作前的草稿";
             nameBox.Text=pendingDesktopName;
             Check("Unlocked desktop buddy can resize directly",desktop.ResizeDirectlyTo(160)&&config.Size==160);
@@ -243,6 +253,8 @@ internal static class SmokeChecks
             GetWindowRect(new WindowInteropHelper(desktop).Handle,out var movedDesktop);
             Check("Desktop movement persists physical coordinates",config.X==movedDesktop.Left&&config.Y==movedDesktop.Top&&movedDesktop.Left==desktopArea.Left+80);
             coordinator.EditExternally(()=>config.Locked=true);
+            desktopDragImage.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice,Environment.TickCount,System.Windows.Input.MouseButton.Left){RoutedEvent=System.Windows.Input.Mouse.MouseDownEvent});
+            Check("Locked GIF press cannot start a gesture",!desktop.IsMouseCaptured);
             Check("Locked desktop blocks resize and movement",!desktop.ResizeDirectlyTo(240)&&!desktop.MoveDirectlyTo(0,0)&&config.Size==160);
             coordinator.EditExternally(()=>{config.Locked=false;config.ClickThrough=true;});
             Check("Click-through desktop blocks direct manipulation",!desktop.ResizeDirectlyTo(240)&&!desktop.MoveDirectlyTo(0,0));
@@ -261,6 +273,9 @@ internal static class SmokeChecks
             layerBox.BringIntoView();manager.UpdateLayout();Capture(manager,Path.Combine(output,"desktop-settings.png"));
             GetWindowRect(desktopHandle,out var afterBinding);
             Check("Binding preserves physical screen position",Math.Abs(beforeBinding.Left-afterBinding.Left)<=1&&Math.Abs(beforeBinding.Top-afterBinding.Top)<=1);
+            desktopDragImage.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice,Environment.TickCount,System.Windows.Input.MouseButton.Left){RoutedEvent=System.Windows.Input.Mouse.MouseDownEvent});
+            Check("Desktop-bound GIF press starts a gesture",desktop.IsMouseCaptured);
+            desktop.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice,Environment.TickCount,System.Windows.Input.MouseButton.Left){RoutedEvent=System.Windows.Input.Mouse.PreviewMouseUpEvent});
             Check("Bound buddy still resizes and moves",desktop.ResizeDirectlyTo(200)&&desktop.MoveDirectlyTo(desktopArea.Left+150,desktopArea.Top+150)&&desktop.IsDesktopBound);
             GetWindowRect(desktopHandle,out var boundPosition);
             Check("Bound moves map to screen coordinates",boundPosition.Left==desktopArea.Left+150&&boundPosition.Top==desktopArea.Top+150);
@@ -281,6 +296,8 @@ internal static class SmokeChecks
                 finally{shell.UndoMinimizeAll();Marshal.FinalReleaseComObject(shell);manager.Reopen();}
             }
             else skipped.Add("Show Desktop visual hit testing requires an accessible input desktop; native parent/style still checked.");
+            desktopDragImage.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice,Environment.TickCount,System.Windows.Input.MouseButton.Left){RoutedEvent=System.Windows.Input.Mouse.MouseDownEvent});
+            Check("Desktop gesture is captured before host closure",desktop.IsMouseCaptured);
             var retiredHandle=desktopHandle;desktop.Close();await Task.Delay(120);
             desktop=Application.Current.Windows.OfType<DesktopBuddyWindow>().Single(window=>ReferenceEquals(window.DataContext,firstBuddy));
             desktopHandle=new WindowInteropHelper(desktop).Handle;

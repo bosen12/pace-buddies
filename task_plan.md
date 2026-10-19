@@ -4,10 +4,10 @@
 Deliver a usable native Windows app with independent animated resource buddies in the system tray and on the desktop, arbitrary GIF import, and a distinctive Traditional Chinese manager.
 
 ## Next Step
-Desktop editing and binding delivered locally in0.5.0. Await user feedback.
+Publish verified0.5.1 source and release assets to GitHub at the user's explicit follow-up request.
 
 ## Current Phase
-Desktop editing and desktop layer (complete)
+0.5.1 release publication (in_progress)
 
 ## Phases
 1. Design and upstream evaluation — complete.

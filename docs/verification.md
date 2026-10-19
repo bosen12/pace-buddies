@@ -1,5 +1,15 @@
 # Release verification · 2026-10-19
 
+## 0.5.1 desktop drag events and process recovery
+
+- Reproduced GIF Image→ScrollViewer→Window press routing: ScrollViewer marks the event handled and the old window handler never starts a gesture. The added routed-press check fails before handledEventsToo registration and passes after it. Locked and desktop-bound press cases, plus actual preview-release capture cleanup, are covered.
+- Fast native-input probe recorded the MouseDown event at client110,76 while GetCursorPos had already advanced20 pixels to the drag endpoint. Start/move/release now use event-screen coordinates; capture the start before flushing editor drafts. Native polling applies only outside the role's HWND bounds. The user stopped Computer Use before final end-to-end physical-input verification; no claim of a completed physical-pointer pass is made.
+- Reproduced active-capture Close teardown exception in isolated packaged checks: LostMouseCapture called FinishGesture→EditExternally→Apply→Show on a closing/closed HWND. OnClosing now marks the window closed and stops the gesture before native teardown; explicit captured-close/recreation regression passes.
+- A SendMessage-only replay with the real cursor elsewhere is not a valid native drag simulation: CaptureMouse also generates live-position reports. Kept diagnostic artifacts locally and removed that invalid check.
+- Final build:0 warnings/errors;66 Core checks pass. Packaged normal start:107 checks pass with one foreground-activation group skipped by the OS; background start:113 checks pass/no skips. Earlier development run also passed113 checks/no skips. Tests include actual parent/styles, Show Desktop exposure, closed-child recreation, taskbar visibility, GIF import/cache, settings and startup.
+- User's disappearing-right-corner report coincided with the legacy unversioned entry running0.1.0, while startup pointed to0.5.0. Restored the modern taskbar strip, then replaced the fixed entry with verified0.5.1 and launched process94100. All existing fields of the latest two buddies unchanged; both GIFs present; startup points to the fixed entry with --background; no real-profile error.log. The fixed EXE hash matches the release EXE.
+- Evidence: artifacts/drag-event-red/, artifacts/drag-route-red/, artifacts/drag-close-green/, artifacts/release-051-normal/, artifacts/release-051-background/; local settings backups remain ignored.
+
 ## 0.4.2 opening-application flicker
 
 - User clarified that opening any application/window can briefly remove the GIF; supplied screenshot still shows the Windows taskbar. Real-profile0.4.1 log contained fullscreen hide/restore transitions during launch. Native polling also captured the taskbar briefly ahead of the visible overlay before the500ms fallback refreshed it.

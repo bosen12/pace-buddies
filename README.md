@@ -6,9 +6,11 @@ Windows 10 / 11 原生桌面工具；每隻角色都能使用自己的 GIF，並
 
 ## 下載與開始使用
 
-從 [最新 Release](https://github.com/bosen12/pace-buddies/releases/latest) 下載 [Windows x64 免安裝 ZIP](https://github.com/bosen12/pace-buddies/releases/download/v0.4.2/PaceBuddies-0.4.2-win-x64.zip)，解壓縮後開啟 `PaceBuddies.exe`。也可直接下載 [單一執行檔](https://github.com/bosen12/pace-buddies/releases/download/v0.4.2/PaceBuddies.exe)。
+從 [最新 Release](https://github.com/bosen12/pace-buddies/releases/latest) 下載 [Windows x64 免安裝 ZIP](https://github.com/bosen12/pace-buddies/releases/download/v0.5.1/PaceBuddies-0.5.1-win-x64.zip)，解壓縮後開啟 `PaceBuddies.exe`。也可直接下載 [單一執行檔](https://github.com/bosen12/pace-buddies/releases/download/v0.5.1/PaceBuddies.exe)。
 
 不需要安裝 .NET，也不需要管理員權限。免安裝包可以整個資料夾移動。Release 附有 `SHA256SUMS.txt` 可核對下載檔案。
+
+升級時請先在舊版按「結束程式」，再開啟新版；右上角 × 只會收起視窗。既有角色、GIF 與設定會沿用。可從管理視窗左下確認版本為 v0.5.1，避免再次開到另一個資料夾中的舊版。
 
 ![跑跑夥伴管理視窗](https://raw.githubusercontent.com/bosen12/pace-buddies/main/docs/images/manager.png)
 
