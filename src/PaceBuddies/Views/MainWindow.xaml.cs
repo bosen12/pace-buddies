@@ -15,14 +15,14 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer editTimer=new(){Interval=TimeSpan.FromMilliseconds(350)};
     private readonly MetricTile cpu,memory,gpu;
     private bool loading=true;
+    private bool dirty;
     private BuddyRuntime? selected;
     public bool AllowClose { get; set; }
     public MainWindow(RuntimeCoordinator coordinator)
     {
         this.coordinator=coordinator;
         InitializeComponent();
-        MaxHeight=SystemParameters.WorkArea.Height;MaxWidth=SystemParameters.WorkArea.Width;
-        Height=Math.Min(850,SystemParameters.WorkArea.Height-28);Width=Math.Min(1160,SystemParameters.WorkArea.Width-28);
+        FitToWorkArea(SystemParameters.WorkArea);
         cpu=new("CPU","處理器","#3976B9");memory=new("RAM","實體記憶體","#A97946");gpu=new("GPU","最忙碌引擎","#578C81");
         MetricHost.Children.Add(cpu);MetricHost.Children.Add(memory);MetricHost.Children.Add(gpu);
         Roster.ItemsSource=coordinator.Buddies;
@@ -31,10 +31,19 @@ public partial class MainWindow : Window
         editTimer.Tick+=(_,_)=>{editTimer.Stop();ApplyDraft();};
         coordinator.Sampled+=sample=>{cpu.Update(sample.Cpu,"處理器忙碌時間（可能與工作管理員的效能校正數字不同）");memory.Update(sample.Memory,"已使用的實體記憶體比例");gpu.Update(sample.Gpu,sample.GpuStatus);UpdateCurve();};
         coordinator.Notice+=ShowNotice;
+        coordinator.ExternalSettingsChanging+=FlushEdits;
+        coordinator.ExternalSettingsChanged+=LoadSelected;
         loading=false;
         if(coordinator.Buddies.Count>0) Roster.SelectedIndex=0;else LoadSelected();
     }
     public void ShowNotice(string message) {Status.Text=message;Status.Foreground=new SolidColorBrush(Color.FromRgb(164,100,96));}
+    public void FitToWorkArea(Rect area)
+    {
+        var availableWidth=Math.Max(1,area.Width-28);var availableHeight=Math.Max(1,area.Height-28);
+        MinWidth=Math.Min(940,availableWidth);MinHeight=Math.Min(650,availableHeight);
+        MaxWidth=area.Width;MaxHeight=area.Height;
+        Width=Math.Min(1160,availableWidth);Height=Math.Min(850,availableHeight);
+    }
     private void LoadSelected()
     {
         loading=true;
@@ -52,7 +61,7 @@ public partial class MainWindow : Window
             TopmostBox.IsChecked=b.Topmost;LockBox.IsChecked=b.Locked;ThroughBox.IsChecked=b.ClickThrough;
             AssetWarning.Text=selected.Warning??"";AssetWarning.Visibility=selected.Warning!=null?Visibility.Visible:Visibility.Collapsed;
         }
-        loading=false;UpdateValueLabels();UpdateCurve();
+        loading=false;dirty=false;UpdateValueLabels();UpdateCurve();
     }
     private void OnSelected(object sender,SelectionChangedEventArgs e)
     {
@@ -63,7 +72,7 @@ public partial class MainWindow : Window
     private void OnEdited(object sender,RoutedEventArgs e)
     {
         if(loading||selected==null)return;
-        UpdateValueLabels();UpdateCurve();editTimer.Stop();editTimer.Start();
+        dirty=true;UpdateValueLabels();UpdateCurve();editTimer.Stop();editTimer.Start();
     }
     private void UpdateValueLabels()
     {
@@ -75,7 +84,8 @@ public partial class MainWindow : Window
     public void FlushEdits() {editTimer.Stop();ApplyDraft();}
     private void ApplyDraft()
     {
-        if(loading||selected==null)return;
+        if(loading||selected==null||!dirty)return;
+        dirty=false;
         var b=selected.Config;
         b.Name=NameBox.Text;b.Source=(MetricSource)Math.Max(0,SourceBox.SelectedIndex);
         b.ShowDesktop=DesktopBox.IsChecked==true;b.ShowTray=TrayBox.IsChecked==true;b.Paused=PauseBox.IsChecked==true;
@@ -127,7 +137,8 @@ public partial class MainWindow : Window
     }
     public async Task ImportGif(string path)
     {
-        if(selected==null){Roster.SelectedItem=coordinator.Add();}
+        if(!ImportButton.IsEnabled){ShowNotice("GIF 正在匯入，請稍候再匯入下一個。");return;}
+        if(selected==null){Roster.SelectedItem=coordinator.Buddies.Count>0?coordinator.Buddies[0]:coordinator.Add();}
         FlushEdits();var buddy=selected!;
         ImportButton.IsEnabled=false;ShowNotice("正在準備 GIF…");
         try
@@ -135,7 +146,7 @@ public partial class MainWindow : Window
             var imported=await Task.Run(()=>GifLoader.Import(path,Path.Combine(coordinator.Store.DirectoryPath,"gifs")));
             if(!coordinator.Buddies.Contains(buddy)){imported.Asset.Dispose();return;}
             buddy.Config.GifPath=imported.Path;buddy.ReplaceAsset(imported.Asset);coordinator.Apply(buddy);
-            if(ReferenceEquals(selected,buddy))LoadSelected();
+            if(ReferenceEquals(selected,buddy)){FlushEdits();LoadSelected();}
             Status.Text="GIF 已匯入，原始檔案移動後仍可使用。";Status.Foreground=(Brush)FindResource("Muted");
         }
         catch(Exception ex) when(ex is IOException or UnauthorizedAccessException or ArgumentException or OutOfMemoryException or System.Runtime.InteropServices.ExternalException)
@@ -154,7 +165,7 @@ public partial class MainWindow : Window
     {if(e.OriginalSource is TextBlock or Grid or StackPanel){if(e.ClickCount==2)WindowState=WindowState==WindowState.Maximized?WindowState.Normal:WindowState.Maximized;else DragMove();}}
     private void OnExit(object sender,RoutedEventArgs e)=>((App)Application.Current).ExitApplication();
     private void OnClosing(object? sender,CancelEventArgs e){if(!AllowClose){FlushEdits();e.Cancel=true;Hide();}}
-    public void Reopen() {LoadSelected();Show();if(WindowState==WindowState.Minimized)WindowState=WindowState.Normal;Activate();}
+    public void Reopen() {FlushEdits();LoadSelected();Show();if(WindowState==WindowState.Minimized)WindowState=WindowState.Normal;Activate();}
     public void ExerciseEditorForCheck()
     {
         Roster.SelectedIndex=0;NameBox.Text="麻糬 · 測試";SourceBox.SelectedIndex=0;MinSlider.Value=.6;MaxSlider.Value=4.5;

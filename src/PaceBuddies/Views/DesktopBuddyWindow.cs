@@ -16,7 +16,7 @@ public sealed class DesktopBuddyWindow : Window
     private readonly Action changed;
     private readonly int slot;
     private bool positioned;
-    public DesktopBuddyWindow(BuddyRuntime buddy,int slot,Action open,Action changed)
+    public DesktopBuddyWindow(BuddyRuntime buddy,int slot,Action open,Action changed,Action<Action> externalEdit)
     {
         runtime=buddy; this.slot=slot; this.changed=changed;
         WindowStyle=WindowStyle.None; AllowsTransparency=true; Background=Brushes.Transparent;
@@ -27,7 +27,7 @@ public sealed class DesktopBuddyWindow : Window
         panel.RowDefinitions.Add(new(){Height=new GridLength(28)});
         var image=new Image { Stretch=Stretch.Uniform };
         image.SetBinding(Image.SourceProperty,new Binding(nameof(BuddyRuntime.Frame)));
-        RenderOptions.SetBitmapScalingMode(image,BitmapScalingMode.NearestNeighbor);
+        image.SetBinding(RenderOptions.BitmapScalingModeProperty,new Binding(nameof(BuddyRuntime.ScalingMode)));
         panel.Children.Add(image);
         label=new TextBlock { Foreground=Brushes.White,FontSize=11,FontFamily=new FontFamily("Microsoft JhengHei UI"),HorizontalAlignment=HorizontalAlignment.Center,VerticalAlignment=VerticalAlignment.Center,Margin=new Thickness(8,2,8,2) };
         var badge=new Border { Background=new SolidColorBrush(Color.FromArgb(224,32,49,74)),CornerRadius=new CornerRadius(10),HorizontalAlignment=HorizontalAlignment.Center,Child=label };
@@ -47,8 +47,8 @@ public sealed class DesktopBuddyWindow : Window
         var menu=new ContextMenu();
         void Item(string name,Action action) { var item=new MenuItem { Header=name };item.Click+=(_,_)=>action();menu.Items.Add(item); }
         Item("管理夥伴",open);
-        Item("暫停 / 繼續",()=>{buddy.Config.Paused=!buddy.Config.Paused;buddy.NotifySettings();changed();});
-        Item("隱藏桌面角色",()=>{buddy.Config.ShowDesktop=false;changed();Hide();});
+        Item("暫停 / 繼續",()=>externalEdit(()=>buddy.Config.Paused=!buddy.Config.Paused));
+        Item("隱藏桌面角色",()=>externalEdit(()=>buddy.Config.ShowDesktop=false));
         ContextMenu=menu;
         ApplySettings();
     }

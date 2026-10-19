@@ -12,9 +12,10 @@ public sealed class AnimationAsset : IDisposable
     public int[] Delays { get; }
     public Icon[] TrayFrames { get; }
     public string Description { get; }
+    public bool PixelArt { get; }
     public AnimationAsset(List<Bitmap> bitmaps,int[] delays,string description,bool pixelArt)
     {
-        Description=description; Delays=delays;
+        Description=description; Delays=delays; PixelArt=pixelArt;
         var frames=new List<BitmapSource>(); var icons=new List<Icon>();
         try
         {

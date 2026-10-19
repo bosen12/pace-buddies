@@ -15,6 +15,8 @@ public sealed class RuntimeCoordinator : IDisposable
     public MetricSnapshot Snapshot { get; private set; }=MetricSnapshot.Empty;
     public event Action<MetricSnapshot>? Sampled;
     public event Action<string>? Notice;
+    public event Action? ExternalSettingsChanging;
+    public event Action? ExternalSettingsChanged;
     private readonly Dictionary<Guid,DesktopBuddyWindow> desktops=[];
     private readonly Dictionary<Guid,Forms.NotifyIcon> trays=[];
     private readonly SystemMonitor monitor=new();
@@ -33,8 +35,8 @@ public sealed class RuntimeCoordinator : IDisposable
         manager=new Forms.NotifyIcon { Text="跑跑夥伴 · 開啟管理視窗",Icon=managerAsset.TrayFrames[0],Visible=true };
         var menu=new Forms.ContextMenuStrip();
         menu.Items.Add("開啟跑跑夥伴",null,(_,_)=>open());
-        menu.Items.Add("暫停全部",null,(_,_)=>{foreach(var b in Buddies) {b.Config.Paused=true;b.NotifySettings();} SaveSoon();});
-        menu.Items.Add("繼續全部",null,(_,_)=>{foreach(var b in Buddies) {b.Config.Paused=false;b.NotifySettings();} SaveSoon();});
+        menu.Items.Add("暫停全部",null,(_,_)=>SetAllPaused(true));
+        menu.Items.Add("繼續全部",null,(_,_)=>SetAllPaused(false));
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("結束程式",null,(_,_)=>exit());manager.ContextMenuStrip=menu;
         manager.MouseClick+=(_,e)=>{if(e.Button==Forms.MouseButtons.Left) open();};
@@ -90,7 +92,7 @@ public sealed class RuntimeCoordinator : IDisposable
                 tray.MouseClick+=(_,e)=>{if(e.Button==Forms.MouseButtons.Left) open();};
                 var menu=new Forms.ContextMenuStrip();
                 menu.Items.Add("管理夥伴",null,(_,_)=>open());
-                menu.Items.Add("暫停 / 繼續",null,(_,_)=>{b.Paused=!b.Paused;buddy.NotifySettings();SaveSoon();});
+                menu.Items.Add("暫停 / 繼續",null,(_,_)=>EditExternally(()=>b.Paused=!b.Paused));
                 menu.Items.Add("重設桌面位置",null,(_,_)=>ResetPosition(buddy));tray.ContextMenuStrip=menu;
             }
             tray.Icon=buddy.Asset.TrayFrames[buddy.FrameIndex];tray.Text=Truncate($"{buddy.Name} · {buddy.SourceName} {buddy.Reading}",120);tray.Visible=true;
@@ -99,13 +101,21 @@ public sealed class RuntimeCoordinator : IDisposable
         if(b.ShowDesktop)
         {
             if(!desktops.TryGetValue(b.Id,out var desktop))
-            {desktop=new DesktopBuddyWindow(buddy,Buddies.IndexOf(buddy),open,()=>{SaveSoon();buddy.NotifySettings();});desktops[b.Id]=desktop;desktop.Show();}
+            {desktop=new DesktopBuddyWindow(buddy,Buddies.IndexOf(buddy),open,()=>{SaveSoon();buddy.NotifySettings();},EditExternally);desktops[b.Id]=desktop;desktop.Show();}
             desktop.ApplySettings();if(!desktop.IsVisible)desktop.Show();
         }
         else if(desktops.Remove(b.Id,out var oldDesktop)) oldDesktop.Close();
         if(save) SaveSoon();
     }
     public void ResetPosition(BuddyRuntime buddy) {if(desktops.TryGetValue(buddy.Config.Id,out var desktop))desktop.ResetPosition();else {buddy.Config.X=buddy.Config.Y=null;SaveSoon();}}
+    public void SetAllPaused(bool paused)=>EditExternally(()=>{foreach(var b in Buddies)b.Config.Paused=paused;});
+    public void EditExternally(Action edit)
+    {
+        ExternalSettingsChanging?.Invoke();
+        edit();
+        foreach(var buddy in Buddies)Apply(buddy,false);
+        ExternalSettingsChanged?.Invoke();SaveSoon();
+    }
     public void SaveSoon() {saveTimer.Stop();saveTimer.Start();}
     public bool Save()
     {

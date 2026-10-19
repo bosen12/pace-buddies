@@ -4,17 +4,17 @@
 Deliver a usable native Windows app with independent animated resource buddies in the system tray and on the desktop, arbitrary GIF import, and a distinctive Traditional Chinese manager.
 
 ## Next Step
-Write and run core behavior checks before implementing the animation and settings logic.
+None. Portable app verified, source and usage guide ready for delivery.
 
 ## Current Phase
-Core behavior (in_progress)
+Complete
 
 ## Phases
 1. Design and upstream evaluation — complete.
-2. Core models, speed mapping, bounded animation clock, atomic settings — in_progress.
-3. Native CPU/RAM/GPU telemetry, GIF decoding, pixel buddies, tray and transparent desktop windows — pending.
-4. WPF manager: previews, per-buddy editing, telemetry history, drag/drop import — pending.
-5. Integration checks, render inspection, portable packaging and documentation — pending.
+2. Core models, speed mapping, bounded animation clock, atomic settings — complete.
+3. Native CPU/RAM/GPU telemetry, GIF decoding, pixel buddies, tray and transparent desktop windows — complete.
+4. WPF manager: previews, per-buddy editing, telemetry history, drag/drop import — complete.
+5. Integration checks, render inspection, portable packaging and documentation — complete.
 
 ## Decisions
 - User authorized autonomous design and implementation on 2026-10-19; no further design approval is required.
@@ -27,3 +27,6 @@ Core behavior (in_progress)
 ## Errors
 - Sandboxed git network DNS failed; explicit network escalation successfully fetched the public reference repository.
 - dotnet --info cannot query the service manager in the sandbox; SDK and desktop runtime 8.0.32 are present.
+- NuGet tried inaccessible roaming configuration; used project-local build environment. Sandboxed MSBuild workers stalled; out-of-sandbox .NET build/test completed normally.
+- Review found stale editor drafts could overwrite external pause/hide and reopening could discard pending changes; reproduced regression failure, added dirty state and coordinated external edits, verified fixes.
+- Review found fixed minimum sizes exceeded high-DPI logical work areas; clamped minimum dimensions and verified full-window and footer visibility at 911×512 DIP.

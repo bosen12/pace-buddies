@@ -3,6 +3,8 @@ using System.Text.Json;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Runtime.InteropServices;
+using System.Windows.Interop;
 using PaceBuddies.Animation;
 using PaceBuddies.Services;
 using PaceBuddies.Views;
@@ -20,6 +22,22 @@ internal static class SmokeChecks
             Check("Three independent desktop windows",coordinator.DesktopCount==3);
             Check("Three animated tray icons plus recovery manager",coordinator.TrayCount==3);
             Check("Original pixel sprites have eight distinct animation frames",coordinator.Buddies.All(b=>b.Asset.Frames.Length==8));
+            coordinator.Settings.Buddies.ForEach(b=>b.Paused=true);
+            manager.FlushEdits();
+            Check("Unchanged editor never overwrites externally paused state",coordinator.Buddies.All(b=>b.Config.Paused));
+            coordinator.Settings.Buddies.ForEach(b=>b.Paused=false);
+            coordinator.SetAllPaused(true);
+            manager.ExerciseEditorForCheck();
+            Check("Tray pause and later editor edits remain synchronized",coordinator.Buddies.All(b=>b.Config.Paused));
+            var nameBox=(System.Windows.Controls.TextBox)manager.FindName("NameBox");
+            nameBox.Text="保留尚未儲存的名稱";manager.Reopen();
+            Check("Reopen preserves pending debounced edit",coordinator.Buddies[0].Config.Name=="保留尚未儲存的名稱");
+            coordinator.SetAllPaused(false);
+            var firstBuddy=coordinator.Buddies[0];
+            coordinator.EditExternally(()=>firstBuddy.Config.ShowDesktop=false);
+            manager.ExerciseEditorForCheck();
+            Check("Desktop hide and later editor edits remain synchronized",!firstBuddy.Config.ShowDesktop&&coordinator.DesktopCount==2);
+            coordinator.EditExternally(()=>firstBuddy.Config.ShowDesktop=true);
             var initial=coordinator.Buddies[0].FrameIndex;
             await Task.Delay(450);
             Check("Live animation advances",coordinator.Buddies[0].FrameIndex!=initial);
@@ -45,7 +63,10 @@ internal static class SmokeChecks
             Check("Display modes toggle independently",coordinator.DesktopCount==2&&coordinator.TrayCount==2);
             config.ShowDesktop=true;config.ShowTray=true;config.ClickThrough=true;coordinator.Apply(coordinator.Buddies[0]);
             Check("Click-through can be enabled with recovery tray",coordinator.DesktopCount==3&&coordinator.TrayCount==3);
+            var desktop=Application.Current.Windows.OfType<DesktopBuddyWindow>().First(w=>ReferenceEquals(w.DataContext,coordinator.Buddies[0]));
+            Check("Native click-through style is enabled",(GetWindowLongPtr(new WindowInteropHelper(desktop).Handle,-20).ToInt64()&0x20)!=0);
             config.ClickThrough=false;coordinator.Apply(coordinator.Buddies[0]);
+            Check("Native click-through style can be disabled",(GetWindowLongPtr(new WindowInteropHelper(desktop).Handle,-20).ToInt64()&0x20)==0);
             var added=coordinator.Add();Check("Add independent buddy",coordinator.Buddies.Count==4&&coordinator.DesktopCount==4);
             coordinator.Remove(added);Check("Remove releases windows and tray icons",coordinator.Buddies.Count==3&&coordinator.DesktopCount==3&&coordinator.TrayCount==3);
             while(coordinator.Snapshot.Cpu==null&&watch.Elapsed.TotalSeconds<12)await Task.Delay(200);
@@ -62,6 +83,12 @@ internal static class SmokeChecks
             manager.Width=950;manager.Height=670;manager.UpdateLayout();await Task.Delay(100);
             Capture(manager,Path.Combine(output,"manager-compact.png"));
             Check("Manager renders at normal and compact sizes",new FileInfo(Path.Combine(output,"manager.png")).Length>10000);
+            manager.FitToWorkArea(new Rect(0,0,911,512));manager.UpdateLayout();await Task.Delay(100);
+            Check("High DPI small work area keeps whole window visible",manager.ActualWidth<=911&&manager.ActualHeight<=512&&manager.MinWidth<=911&&manager.MinHeight<=512);
+            Capture(manager,Path.Combine(output,"manager-small-hidpi.png"));
+            var footer=(System.Windows.Controls.TextBlock)manager.FindName("Status");
+            Check("Small work area keeps footer inside window",footer.TranslatePoint(new Point(0,footer.ActualHeight),manager).Y<=manager.ActualHeight);
+            Capture(desktop,Path.Combine(output,"desktop-buddy.png"));
             File.WriteAllText(Path.Combine(output,"smoke-result.json"),JsonSerializer.Serialize(new{Success=true,Checks=results,Telemetry=coordinator.Snapshot,ElapsedSeconds=watch.Elapsed.TotalSeconds},new JsonSerializerOptions{WriteIndented=true}));
         }
         catch(Exception ex)
@@ -74,4 +101,5 @@ internal static class SmokeChecks
         var bitmap=new RenderTargetBitmap((int)element.ActualWidth,(int)element.ActualHeight,96,96,PixelFormats.Pbgra32);bitmap.Render(element);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var stream=File.Create(path);encoder.Save(stream);
     }
+    [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")] private static extern IntPtr GetWindowLongPtr(IntPtr window,int index);
 }
