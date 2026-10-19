@@ -1,0 +1,70 @@
+<Window x:Class="PaceBuddies.Views.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:PaceBuddies.Views" xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework" Title="跑跑夥伴 · Pace Buddies" Width="1160" Height="850" MinWidth="940" MinHeight="650" Background="#EFF4F8" Foreground="#20314A" WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="CanResize" FontFamily="Microsoft JhengHei UI" AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver" Closing="OnClosing">
+ <shell:WindowChrome.WindowChrome><shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" CornerRadius="12" GlassFrameThickness="0"/></shell:WindowChrome.WindowChrome>
+ <Border BorderBrush="#D5DFE9" BorderThickness="1">
+ <Grid>
+  <Grid.ColumnDefinitions><ColumnDefinition Width="82"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+  <Border Background="#20314A">
+   <Grid Margin="0,22,0,22"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <StackPanel HorizontalAlignment="Center"><Border Background="#F5B677" CornerRadius="13" Width="44" Height="44"><TextBlock Text="P" FontFamily="Segoe UI Black" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Text="PACE" Foreground="#DDE8F4" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,12,0,0"/></StackPanel>
+    <StackPanel Grid.Row="1" Margin="10,42,10,0"><Border Background="#38506B" CornerRadius="10" Padding="4,13"><StackPanel><TextBlock Text="▦" Foreground="White" FontSize="22" HorizontalAlignment="Center"/><TextBlock Text="夥伴" Foreground="White" FontSize="11" HorizontalAlignment="Center" Margin="0,5,0,0"/></StackPanel></Border></StackPanel>
+    <StackPanel Grid.Row="2"><TextBlock Text="本機運作" Foreground="#A7BDCF" FontSize="10" HorizontalAlignment="Center"/><TextBlock Text="v0.1" Foreground="#7891A9" FontSize="10" HorizontalAlignment="Center" Margin="0,5,0,0"/></StackPanel>
+   </Grid>
+  </Border>
+  <Grid Grid.Column="1" Margin="26,0,24,0">
+   <Grid.RowDefinitions><RowDefinition Height="88"/><RowDefinition Height="106"/><RowDefinition Height="*"/><RowDefinition Height="64"/></Grid.RowDefinitions>
+   <Grid MouseLeftButtonDown="OnTitleDrag">
+    <StackPanel VerticalAlignment="Center"><TextBlock Text="跑跑夥伴" FontSize="26" FontWeight="Bold"/><TextBlock Text="讓電腦的忙碌，有一點可愛。" Style="{StaticResource Caption}" Margin="0,5,0,0"/></StackPanel>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"><Border Background="#E0ECE5" CornerRadius="12" Padding="10,5" Margin="0,0,18,0"><TextBlock Text="●  即時監控" Foreground="#4C7F68" FontSize="11"/></Border><Button Content="—" Padding="10,5" Margin="0,0,6,0" Click="OnMinimize" ToolTip="最小化" AutomationProperties.Name="最小化"/><Button Content="×" Padding="11,5" Click="OnHide" ToolTip="收起到系統匣，監控會繼續" AutomationProperties.Name="收起到系統匣"/></StackPanel>
+   </Grid>
+   <UniformGrid x:Name="MetricHost" Grid.Row="1" Columns="3" Margin="0,0,-10,18"/>
+   <Grid Grid.Row="2">
+    <Grid.ColumnDefinitions><ColumnDefinition Width="224"/><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <Border Background="White" CornerRadius="14" Padding="14">
+     <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <Grid Margin="2,4,2,16"><TextBlock Text="我的夥伴" FontWeight="Bold" FontSize="15"/><TextBlock x:Name="BuddyCount" HorizontalAlignment="Right" Style="{StaticResource Caption}" VerticalAlignment="Center"/></Grid>
+      <ListBox x:Name="Roster" Grid.Row="1" BorderThickness="0" Background="Transparent" SelectionChanged="OnSelected" ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" AutomationProperties.Name="我的夥伴">
+       <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,0,0,8"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Border x:Name="Row" Background="#F5F8FB" BorderThickness="1" BorderBrush="Transparent" CornerRadius="10" Padding="9,10"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsSelected" Value="True"><Setter TargetName="Row" Property="Background" Value="#EAF2FC"/><Setter TargetName="Row" Property="BorderBrush" Value="#AAC8E7"/></Trigger><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Row" Property="BorderBrush" Value="#AAC8E7"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Row" Property="BorderBrush" Value="#3976B9"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
+       <ListBox.ItemTemplate><DataTemplate><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="42"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Image Source="{Binding Frame}" Width="36" Height="36" RenderOptions.BitmapScalingMode="NearestNeighbor"/><StackPanel Grid.Column="1" Margin="8,0,0,0"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding SourceName}" Style="{StaticResource Caption}" Margin="0,3,0,0"/><TextBlock Text="{Binding Reading}" FontSize="11" FontFamily="Consolas" Foreground="#3976B9" Margin="0,3,0,0"/></StackPanel></Grid></DataTemplate></ListBox.ItemTemplate>
+      </ListBox>
+      <StackPanel Grid.Row="2"><Button Content="＋ 新增夥伴" Style="{StaticResource Primary}" Click="OnAdd"/><TextBlock Text="GIF 可直接拖進視窗" Style="{StaticResource Caption}" HorizontalAlignment="Center" Margin="0,12,0,2"/></StackPanel>
+     </Grid>
+    </Border>
+    <Border Grid.Column="2" Background="White" CornerRadius="14" Padding="22,16,22,16">
+     <Grid>
+      <ScrollViewer x:Name="EditorScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+       <StackPanel x:Name="Editor" Margin="0,0,8,0">
+        <Grid Margin="0,0,0,12"><StackPanel><TextBlock x:Name="SelectedTitle" FontSize="20" FontWeight="Bold"/><TextBlock x:Name="SelectedInfo" Style="{StaticResource Caption}" Margin="0,4,0,0"/></StackPanel><Button Content="移除" HorizontalAlignment="Right" VerticalAlignment="Top" Padding="10,6" Foreground="#A46460" Background="#FCF2F0" BorderBrush="#F0DEDA" Click="OnRemove"/></Grid>
+        <Border Background="#EFF6FB" CornerRadius="10" Height="145" ClipToBounds="True">
+         <Grid><local:Habitat/><TextBlock Text="LIVE HABITAT" Foreground="#7C9AAF" FontSize="9" FontFamily="Consolas" Margin="14,12,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/><Image Source="{Binding Frame}" Width="106" Height="106" Margin="0,0,0,20" VerticalAlignment="Bottom" RenderOptions.BitmapScalingMode="NearestNeighbor"/><Border Background="White" CornerRadius="7" Padding="9,5" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,10,0"><TextBlock Text="{Binding SpeedText}" FontFamily="Consolas" FontSize="13" Foreground="#3976B9"/></Border></Grid>
+        </Border>
+        <TextBlock x:Name="AssetWarning" TextWrapping="Wrap" Foreground="#A46460" FontSize="11" Margin="0,6,0,0" Visibility="Collapsed"/>
+        <Grid Margin="0,16,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="夥伴名稱" Style="{StaticResource Caption}" Margin="0,0,0,5"/><TextBox x:Name="NameBox" MaxLength="40" TextChanged="OnEdited" AutomationProperties.Name="夥伴名稱"/></StackPanel><StackPanel Grid.Column="2"><TextBlock Text="跟隨的使用率" Style="{StaticResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="SourceBox" SelectionChanged="OnEdited" AutomationProperties.Name="跟隨的使用率"><ComboBoxItem Content="CPU · 處理器"/><ComboBoxItem Content="RAM · 實體記憶體"/><ComboBoxItem Content="GPU · 最忙碌引擎"/></ComboBox></StackPanel></Grid>
+        <TextBlock Text="外觀與顯示" Style="{StaticResource Section}"/>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><ComboBox x:Name="SpriteBox" SelectionChanged="OnSpriteChanged" AutomationProperties.Name="內建角色"><ComboBoxItem Content="麻糬 · 奔跑小貓"/><ComboBoxItem Content="布丁 · 彈跳精靈"/><ComboBoxItem Content="啾啾 · 振翅小鳥"/><ComboBoxItem Content="使用自訂 GIF" IsEnabled="False"/></ComboBox><Button x:Name="ImportButton" Grid.Column="2" Content="匯入 GIF…" Click="OnImport"/></Grid>
+        <TextBlock Text="{Binding AssetDetail}" Style="{StaticResource Caption}" Margin="0,7,0,6"/>
+        <WrapPanel><CheckBox x:Name="DesktopBox" Content="桌面懸浮" Click="OnEdited"/><CheckBox x:Name="TrayBox" Content="系統匣動畫" Click="OnEdited"/><CheckBox x:Name="PauseBox" Content="暫停動畫" Click="OnEdited"/></WrapPanel>
+        <Grid Margin="0,3,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="桌面數字" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,14,0"/><ComboBox x:Name="LabelBox" Grid.Column="1" SelectionChanged="OnEdited" AutomationProperties.Name="桌面數字顯示方式"><ComboBoxItem Content="滑鼠移上去才顯示"/><ComboBoxItem Content="一直顯示"/><ComboBoxItem Content="隱藏數字"/></ComboBox></Grid>
+        <TextBlock Text="讓忙碌決定步調" Style="{StaticResource Section}"/>
+        <Border Background="#F7F9FC" CornerRadius="8" Padding="12,10"><StackPanel><Grid><TextBlock Text="負載越高，跑得越快" FontSize="11" Foreground="#6F8199"/><TextBlock x:Name="SpeedRange" HorizontalAlignment="Right" FontFamily="Consolas" FontSize="11"/></Grid><Canvas x:Name="Curve" Height="45" ClipToBounds="True" Margin="0,7,0,0" SizeChanged="OnCurveSize"><Line X1="0" Y1="44" X2="2000" Y2="44" Stroke="#DCE5EE"/><Polyline x:Name="CurveLine" Stroke="#3976B9" StrokeThickness="2"/><Ellipse x:Name="CurveDot" Fill="#F5B677" Stroke="White" StrokeThickness="2" Width="10" Height="10"/></Canvas><Grid><TextBlock Text="0% 使用率" FontSize="10" Foreground="#8A9BAE"/><TextBlock Text="100% 使用率" FontSize="10" Foreground="#8A9BAE" HorizontalAlignment="Right"/></Grid></StackPanel></Border>
+        <Grid Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="66"/><ColumnDefinition Width="*"/><ColumnDefinition Width="54"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="32"/><RowDefinition Height="32"/><RowDefinition Height="32"/></Grid.RowDefinitions>
+         <TextBlock Text="最低速度" Style="{StaticResource Caption}" VerticalAlignment="Center"/><Slider x:Name="MinSlider" Grid.Column="1" Minimum="0.1" Maximum="8" TickFrequency="0.1" IsSnapToTickEnabled="True" ValueChanged="OnEdited" AutomationProperties.Name="最低速度"/><TextBlock x:Name="MinValue" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" FontFamily="Consolas"/>
+         <TextBlock Grid.Row="1" Text="最高速度" Style="{StaticResource Caption}" VerticalAlignment="Center"/><Slider x:Name="MaxSlider" Grid.Row="1" Grid.Column="1" Minimum="0.1" Maximum="8" TickFrequency="0.1" IsSnapToTickEnabled="True" ValueChanged="OnEdited" AutomationProperties.Name="最高速度"/><TextBlock x:Name="MaxValue" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" FontFamily="Consolas"/>
+         <TextBlock Grid.Row="2" Text="變速緩衝" Style="{StaticResource Caption}" VerticalAlignment="Center"/><Slider x:Name="ResponseSlider" Grid.Row="2" Grid.Column="1" Minimum="0" Maximum="5" TickFrequency="0.1" IsSnapToTickEnabled="True" ValueChanged="OnEdited" AutomationProperties.Name="變速緩衝秒數"/><TextBlock x:Name="ResponseValue" Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" FontFamily="Consolas"/>
+        </Grid>
+        <TextBlock Text="最低與最高速度會依使用率連續換算；緩衝越長，變速越柔和。" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+        <TextBlock Text="桌面小角落" Style="{StaticResource Section}"/>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="66"/><ColumnDefinition Width="*"/><ColumnDefinition Width="54"/></Grid.ColumnDefinitions><TextBlock Text="角色大小" Style="{StaticResource Caption}" VerticalAlignment="Center"/><Slider x:Name="SizeSlider" Grid.Column="1" Minimum="48" Maximum="240" TickFrequency="8" IsSnapToTickEnabled="True" ValueChanged="OnEdited" AutomationProperties.Name="桌面角色大小"/><TextBlock x:Name="SizeValue" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontFamily="Consolas"/></Grid>
+        <WrapPanel Margin="0,6,0,0"><CheckBox x:Name="TopmostBox" Content="保持置頂" Click="OnEdited"/><CheckBox x:Name="LockBox" Content="鎖定位置" Click="OnEdited"/><CheckBox x:Name="ThroughBox" Content="滑鼠穿透" Click="OnEdited"/></WrapPanel>
+        <TextBlock Text="滑鼠穿透後，可從系統匣開啟此視窗調整。系統匣數字以提示文字顯示。" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,12"/>
+        <Button Content="把角色移回右下角" HorizontalAlignment="Left" Padding="12,7" Click="OnResetPosition"/>
+       </StackPanel>
+      </ScrollViewer>
+      <StackPanel x:Name="EmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"><TextBlock Text="留一個角落給新夥伴" FontSize="21" FontWeight="SemiBold"/><TextBlock Text="按左下方「新增夥伴」開始。" Style="{StaticResource Caption}" Margin="0,12,0,0"/></StackPanel>
+     </Grid>
+    </Border>
+   </Grid>
+   <Grid Grid.Row="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock x:Name="Status" Text="設定會自動儲存 · 關閉視窗後，夥伴仍會繼續陪伴。" Style="{StaticResource Caption}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,18,0"/><StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"><Button Content="結束程式" Background="Transparent" BorderBrush="Transparent" Margin="0,0,8,0" Click="OnExit"/><Button Content="立即儲存" Style="{StaticResource Primary}" Click="OnSave"/></StackPanel></Grid>
+  </Grid>
+ </Grid>
+ </Border>
+</Window>
