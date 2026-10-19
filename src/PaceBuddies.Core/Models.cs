@@ -22,6 +22,7 @@ public sealed class BuddyConfig
     public double ResponseSeconds { get; set; } = 1.5;
     public int Size { get; set; } = 96;
     public bool Topmost { get; set; } = true;
+    public bool BindDesktop { get; set; }
     public bool Locked { get; set; }
     public bool ClickThrough { get; set; }
     public int? X { get; set; }
@@ -34,7 +35,7 @@ public sealed class BuddyConfig
         if (Builtin is not ("cat" or "blob" or "bird")) Builtin = "cat";
         if (!Enum.IsDefined(Source)) Source = MetricSource.Cpu;
         if (!Enum.IsDefined(Label)) Label = LabelMode.Hover;
-        Size = Math.Clamp(Size, 48, 240);
+        Size = DesktopGeometry.ClampHeight(Size);
         MinimumSpeed = double.IsFinite(MinimumSpeed) ? Math.Clamp(MinimumSpeed, .1, 8) : .5;
         MaximumSpeed = double.IsFinite(MaximumSpeed) ? Math.Clamp(MaximumSpeed, MinimumSpeed, 8) : Math.Max(4,MinimumSpeed);
         ResponseSeconds = double.IsFinite(ResponseSeconds) ? Math.Clamp(ResponseSeconds,0,5) : 1.5;

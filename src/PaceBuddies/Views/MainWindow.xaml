@@ -7,7 +7,7 @@
    <Grid Margin="0,22,0,22"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <StackPanel HorizontalAlignment="Center"><Border Background="#F5B677" CornerRadius="13" Width="44" Height="44"><TextBlock Text="P" FontFamily="Segoe UI Black" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Text="PACE" Foreground="#DDE8F4" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,12,0,0"/></StackPanel>
     <StackPanel Grid.Row="1" Margin="10,42,10,0"><Border Background="#38506B" CornerRadius="10" Padding="4,13"><StackPanel><TextBlock Text="▦" Foreground="White" FontSize="22" HorizontalAlignment="Center"/><TextBlock Text="夥伴" Foreground="White" FontSize="11" HorizontalAlignment="Center" Margin="0,5,0,0"/></StackPanel></Border></StackPanel>
-    <StackPanel Grid.Row="2"><TextBlock Text="本機運作" Foreground="#A7BDCF" FontSize="10" HorizontalAlignment="Center"/><TextBlock Text="v0.4.2" Foreground="#7891A9" FontSize="10" HorizontalAlignment="Center" Margin="0,5,0,0"/></StackPanel>
+    <StackPanel Grid.Row="2"><TextBlock Text="本機運作" Foreground="#A7BDCF" FontSize="10" HorizontalAlignment="Center"/><TextBlock Text="v0.5.0" Foreground="#7891A9" FontSize="10" HorizontalAlignment="Center" Margin="0,5,0,0"/></StackPanel>
    </Grid>
   </Border>
   <Grid Grid.Column="1" Margin="26,0,24,0">
@@ -54,9 +54,9 @@
         </Grid>
         <TextBlock Text="最低與最高速度會依使用率連續換算；緩衝越長，變速越柔和。" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,5,0,0"/>
         <TextBlock Text="桌面小角落" Style="{StaticResource Section}"/>
-        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="66"/><ColumnDefinition Width="*"/><ColumnDefinition Width="54"/></Grid.ColumnDefinitions><TextBlock Text="角色高度" Style="{StaticResource Caption}" VerticalAlignment="Center"/><Slider x:Name="SizeSlider" Grid.Column="1" Minimum="48" Maximum="240" TickFrequency="8" IsSnapToTickEnabled="True" ValueChanged="OnEdited" AutomationProperties.Name="桌面角色高度"/><TextBlock x:Name="SizeValue" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontFamily="Consolas"/></Grid>
-        <WrapPanel Margin="0,6,0,0"><CheckBox x:Name="TopmostBox" Content="保持置頂" Click="OnEdited"/><CheckBox x:Name="LockBox" Content="鎖定位置" Click="OnEdited"/><CheckBox x:Name="ThroughBox" Content="滑鼠穿透" Click="OnEdited"/></WrapPanel>
-        <TextBlock Text="滑鼠穿透只影響桌面角色。工作列角色可直接點擊管理，或移上去看詳細讀值。" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,12"/>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="66"/><ColumnDefinition Width="*"/><ColumnDefinition Width="54"/></Grid.ColumnDefinitions><TextBlock Text="角色高度" Style="{StaticResource Caption}" VerticalAlignment="Center"/><Slider x:Name="SizeSlider" Grid.Column="1" Minimum="48" Maximum="480" TickFrequency="8" IsSnapToTickEnabled="True" ValueChanged="OnEdited" AutomationProperties.Name="桌面角色高度"/><TextBlock x:Name="SizeValue" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontFamily="Consolas"/></Grid>
+        <WrapPanel Margin="0,6,0,0"><CheckBox x:Name="TopmostBox" Content="保持置頂" Click="OnEdited"/><CheckBox x:Name="LockBox" Content="鎖定位置與大小" Click="OnEdited"/><CheckBox x:Name="ThroughBox" Content="滑鼠穿透" Click="OnEdited"/></WrapPanel>
+        <CheckBox x:Name="BindDesktopBox" Content="綁定桌面層（位於其他應用下方）" Click="OnEdited" ToolTip="附著於桌面，停用懸浮置頂；取消可恢復原本置頂設定"/><TextBlock Text="{Binding DesktopStatus}" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,3,0,5"/><TextBlock Text="未鎖定時可拖曳角色、拉右下角縮放，或按 Ctrl＋滾輪調整高度。一般滾輪仍可捲動較寬的 GIF。" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,3,0,5"/><TextBlock Text="滑鼠穿透只影響桌面角色。工作列角色可直接點擊管理，或移上去看詳細讀值。" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,12"/>
         <Button Content="把角色移回右下角" HorizontalAlignment="Left" Padding="12,7" Click="OnResetPosition"/>
        </StackPanel>
       </ScrollViewer>

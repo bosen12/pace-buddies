@@ -21,6 +21,8 @@ public sealed class BuddyRuntime : INotifyPropertyChanged,IDisposable
     public double PreviewWidth=>106*Asset.AspectRatio;
     public BitmapScalingMode ScalingMode => Asset.PixelArt?BitmapScalingMode.NearestNeighbor:BitmapScalingMode.HighQuality;
     public string? Warning { get; private set; }
+    public string DesktopStatus { get; private set; }="";
+    public void SetDesktopStatus(string status){if(DesktopStatus==status)return;DesktopStatus=status;Changed(nameof(DesktopStatus));}
     public bool HasWarning=>Warning!=null;
     public double CurrentSpeed { get; private set; }
     private double? usage;

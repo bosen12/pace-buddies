@@ -92,6 +92,7 @@ public partial class MainWindow : Window
             LabelBox.SelectedIndex=(int)b.Label;MinSlider.Value=b.MinimumSpeed;MaxSlider.Value=b.MaximumSpeed;
             ResponseSlider.Value=b.ResponseSeconds;SizeSlider.Value=b.Size;
             TopmostBox.IsChecked=b.Topmost;LockBox.IsChecked=b.Locked;ThroughBox.IsChecked=b.ClickThrough;
+            BindDesktopBox.IsChecked=b.BindDesktop;TopmostBox.IsEnabled=!b.BindDesktop;
         }
         loading=false;dirty=false;UpdateValueLabels();UpdateCurve();
     }
@@ -125,6 +126,7 @@ public partial class MainWindow : Window
         b.MinimumSpeed=MinSlider.Value;b.MaximumSpeed=Math.Max(MinSlider.Value,MaxSlider.Value);
         b.ResponseSeconds=ResponseSlider.Value;b.Size=(int)SizeSlider.Value;
         b.Topmost=TopmostBox.IsChecked==true;b.Locked=LockBox.IsChecked==true;b.ClickThrough=ThroughBox.IsChecked==true;
+        b.BindDesktop=BindDesktopBox.IsChecked==true;TopmostBox.IsEnabled=!b.BindDesktop;
         if(MaxSlider.Value<b.MinimumSpeed){loading=true;MaxSlider.Value=b.MinimumSpeed;loading=false;}
         coordinator.Apply(selected);
         SelectedTitle.Text=b.Name;SelectedInfo.Text=$"{selected.SourceName} 的專屬夥伴 · 所有設定都只影響這一隻";

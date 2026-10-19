@@ -163,10 +163,21 @@ public sealed class RuntimeCoordinator : IDisposable
         if(b.ShowDesktop)
         {
             if(!desktops.TryGetValue(b.Id,out var desktop))
-            {desktop=new DesktopBuddyWindow(buddy,Buddies.IndexOf(buddy),open,()=>{SaveSoon();buddy.NotifySettings();},EditExternally);desktops[b.Id]=desktop;desktop.Show();}
+            {
+                desktop=new DesktopBuddyWindow(buddy,Buddies.IndexOf(buddy),open,()=>{SaveSoon();buddy.NotifySettings();ExternalSettingsChanged?.Invoke();},EditExternally);
+                var created=desktop;
+                created.Closed+=(_,_)=>
+                {
+                    if(disposed||!desktops.TryGetValue(b.Id,out var current)||!ReferenceEquals(current,created))return;
+                    desktops.Remove(b.Id);
+                    Application.Current.Dispatcher.BeginInvoke(()=>{if(!disposed&&b.ShowDesktop&&Buddies.Contains(buddy))Apply(buddy,false);});
+                };
+                desktops[b.Id]=desktop;desktop.Show();
+            }
             desktop.ApplySettings();if(!desktop.IsVisible)desktop.Show();
         }
         else if(desktops.Remove(b.Id,out var oldDesktop)) oldDesktop.Close();
+        if(!b.ShowDesktop)buddy.SetDesktopStatus("開啟桌面懸浮後，可直接移動、縮放或綁定桌面層。");
         EnsureResolution(buddy);UpdateAnimationState();
         if(save) SaveSoon();
     }

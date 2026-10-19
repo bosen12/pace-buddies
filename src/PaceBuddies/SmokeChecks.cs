@@ -25,6 +25,7 @@ internal static class SmokeChecks
             Check("Three independent desktop windows",coordinator.DesktopCount==3);
             Check("Three fixed taskbar buddies outside notification overflow",coordinator.TaskbarCount==3);
             Check("Only one static recovery notification icon",coordinator.ManagerTrayCount==1);
+            Check("Desktop-layer binding is available in manager",manager.FindName("BindDesktopBox") is System.Windows.Controls.CheckBox);
             var dock=Application.Current.Windows.OfType<TaskbarBuddyWindow>().Single();
             dock.RefreshAnchor();await Task.Delay(150);
             var anchor=NativeTaskbarLocator.Locate();
@@ -230,6 +231,66 @@ internal static class SmokeChecks
             Check("Native click-through style is enabled",(GetWindowLongPtr(new WindowInteropHelper(desktop).Handle,-20).ToInt64()&0x20)!=0);
             config.ClickThrough=false;coordinator.Apply(coordinator.Buddies[0]);
             Check("Native click-through style can be disabled",(GetWindowLongPtr(new WindowInteropHelper(desktop).Handle,-20).ToInt64()&0x20)==0);
+            var pendingDesktopName="保留桌面操作前的草稿";
+            nameBox.Text=pendingDesktopName;
+            Check("Unlocked desktop buddy can resize directly",desktop.ResizeDirectlyTo(160)&&config.Size==160);
+            Check("Desktop resize flushes drafts and synchronizes editor",config.Name==pendingDesktopName&&Math.Abs(((System.Windows.Controls.Slider)manager.FindName("SizeSlider")).Value-160)<.01);
+            ((System.Windows.Controls.Slider)manager.FindName("SizeSlider")).Value=200;
+            Check("Relative resize respects pending size draft",desktop.ResizeDirectlyBy(8)&&config.Size==208&&((System.Windows.Controls.Slider)manager.FindName("SizeSlider")).Value==208);
+            desktop.ResizeDirectlyTo(160);
+            var desktopArea=System.Windows.Forms.Screen.FromHandle(new WindowInteropHelper(desktop).Handle).WorkingArea;
+            Check("Unlocked desktop buddy can move directly",desktop.MoveDirectlyTo(desktopArea.Left+80,desktopArea.Top+80));
+            GetWindowRect(new WindowInteropHelper(desktop).Handle,out var movedDesktop);
+            Check("Desktop movement persists physical coordinates",config.X==movedDesktop.Left&&config.Y==movedDesktop.Top&&movedDesktop.Left==desktopArea.Left+80);
+            coordinator.EditExternally(()=>config.Locked=true);
+            Check("Locked desktop blocks resize and movement",!desktop.ResizeDirectlyTo(240)&&!desktop.MoveDirectlyTo(0,0)&&config.Size==160);
+            coordinator.EditExternally(()=>{config.Locked=false;config.ClickThrough=true;});
+            Check("Click-through desktop blocks direct manipulation",!desktop.ResizeDirectlyTo(240)&&!desktop.MoveDirectlyTo(0,0));
+            coordinator.EditExternally(()=>config.ClickThrough=false);
+            Check("Desktop resize supports larger proportional canvas",desktop.ResizeDirectlyTo(400)&&Descendants<System.Windows.Controls.Image>(desktop).Single().Height==400);
+            desktop.ResizeDirectlyTo(104);
+            GetWindowRect(new WindowInteropHelper(desktop).Handle,out var beforeBinding);
+            var layerBox=(System.Windows.Controls.CheckBox)manager.FindName("BindDesktopBox");
+            layerBox.IsChecked=true;layerBox.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));manager.FlushEdits();
+            await Task.Delay(100);desktop.UpdateLayout();
+            var desktopHandle=new WindowInteropHelper(desktop).Handle;
+            var actualHost=GetParent(desktopHandle);
+            Check("Desktop binding attaches the actual native window",config.BindDesktop&&desktop.IsDesktopBound&&actualHost==DesktopLayerAttachment.FindHost());
+            Check("Desktop binding uses child style without topmost",(GetWindowLongPtr(desktopHandle,-16).ToInt64()&0x40000000)!=0&&(GetWindowLongPtr(desktopHandle,-20).ToInt64()&8)==0&&!desktop.Topmost);
+            Check("Desktop binding preserves floating topmost preference",config.Topmost&&!((System.Windows.Controls.CheckBox)manager.FindName("TopmostBox")).IsEnabled);
+            layerBox.BringIntoView();manager.UpdateLayout();Capture(manager,Path.Combine(output,"desktop-settings.png"));
+            GetWindowRect(desktopHandle,out var afterBinding);
+            Check("Binding preserves physical screen position",Math.Abs(beforeBinding.Left-afterBinding.Left)<=1&&Math.Abs(beforeBinding.Top-afterBinding.Top)<=1);
+            Check("Bound buddy still resizes and moves",desktop.ResizeDirectlyTo(200)&&desktop.MoveDirectlyTo(desktopArea.Left+150,desktopArea.Top+150)&&desktop.IsDesktopBound);
+            GetWindowRect(desktopHandle,out var boundPosition);
+            Check("Bound moves map to screen coordinates",boundPosition.Left==desktopArea.Left+150&&boundPosition.Top==desktopArea.Top+150);
+            if(interactiveDesktop)
+            {
+                var shellType=Type.GetTypeFromProgID("Shell.Application")!;
+                dynamic shell=Activator.CreateInstance(shellType)!;
+                try
+                {
+                    shell.MinimizeAll();
+                    // Shell minimization is asynchronous; wait for desktop exposure instead of assuming a fixed animation duration.
+                    var desktopExposure=Stopwatch.StartNew();
+                    while(!AnyHit(desktopHandle,boundPosition)&&desktopExposure.ElapsedMilliseconds<2000)await Task.Delay(50);
+                    Check("Desktop-bound buddy survives Show Desktop",IsWindowVisible(desktopHandle)&&GetParent(desktopHandle)==actualHost);
+                    Check("Desktop-bound buddy renders above desktop surface",AnyHit(desktopHandle,boundPosition));
+                    Capture(desktop,Path.Combine(output,"desktop-bound-buddy.png"));
+                }
+                finally{shell.UndoMinimizeAll();Marshal.FinalReleaseComObject(shell);manager.Reopen();}
+            }
+            else skipped.Add("Show Desktop visual hit testing requires an accessible input desktop; native parent/style still checked.");
+            var retiredHandle=desktopHandle;desktop.Close();await Task.Delay(120);
+            desktop=Application.Current.Windows.OfType<DesktopBuddyWindow>().Single(window=>ReferenceEquals(window.DataContext,firstBuddy));
+            desktopHandle=new WindowInteropHelper(desktop).Handle;
+            Check("Closed desktop host child is recreated with binding intact",desktopHandle!=retiredHandle&&desktop.IsDesktopBound&&GetParent(desktopHandle)==DesktopLayerAttachment.FindHost());
+            GetWindowRect(desktopHandle,out var beforeDetach);
+            layerBox.IsChecked=false;layerBox.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));manager.FlushEdits();await Task.Delay(80);
+            Check("Desktop binding detaches back into floating mode",!desktop.IsDesktopBound&&GetParent(desktopHandle)==IntPtr.Zero&&desktop.Topmost&&config.Topmost);
+            GetWindowRect(desktopHandle,out var afterDetach);
+            Check("Detaching preserves screen position",Math.Abs(beforeDetach.Left-afterDetach.Left)<=1&&Math.Abs(beforeDetach.Top-afterDetach.Top)<=1);
+            desktop.ResizeDirectlyTo(104);
             var added=coordinator.Add();Check("Add independent buddy",coordinator.Buddies.Count==4&&coordinator.DesktopCount==4);
             coordinator.Remove(added);Check("Remove releases windows and taskbar cells",coordinator.Buddies.Count==3&&coordinator.DesktopCount==3&&coordinator.TaskbarCount==3);
             coordinator.EditExternally(()=>{foreach(var b in coordinator.Buddies)b.Config.ShowTray=false;});
@@ -329,6 +390,13 @@ internal static class SmokeChecks
             if(window==candidate)return true;
         return false;
     }
+    private static bool AnyHit(IntPtr window,PixelRect rect)
+    {
+        for(var y=rect.Top+2;y<rect.Bottom;y+=4)
+            for(var x=rect.Left+2;x<rect.Right;x+=4)
+                if(WindowFromPoint(new NativePoint(x,y))==window)return true;
+        return false;
+    }
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T:DependencyObject
     {
         for(var i=0;i<VisualTreeHelper.GetChildrenCount(root);i++)
@@ -345,6 +413,8 @@ internal static class SmokeChecks
     [DllImport("user32.dll",CharSet=CharSet.Unicode)] private static extern IntPtr FindWindow(string? name,string? title);
     [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr window,uint command);
     [DllImport("user32.dll")] private static extern IntPtr GetDesktopWindow();
+    [DllImport("user32.dll")] private static extern IntPtr GetParent(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr window);
     [DllImport("user32.dll")] private static extern void NotifyWinEvent(uint kind,IntPtr window,int objectId,int childId);
     [StructLayout(LayoutKind.Sequential)] private readonly record struct NativePoint(int X,int Y);
     [DllImport("user32.dll")] private static extern IntPtr WindowFromPoint(NativePoint point);

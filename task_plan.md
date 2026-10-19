@@ -4,10 +4,10 @@
 Deliver a usable native Windows app with independent animated resource buddies in the system tray and on the desktop, arbitrary GIF import, and a distinctive Traditional Chinese manager.
 
 ## Next Step
-0.4.2 delivered and active; native launch-surface and reorder regressions pass, settings/startup preserved.
+Desktop editing and binding delivered locally in0.5.0. Await user feedback.
 
 ## Current Phase
-Application launch flicker (complete)
+Desktop editing and desktop layer (complete)
 
 ## Phases
 1. Design and upstream evaluation — complete.
@@ -22,8 +22,10 @@ Application launch flicker (complete)
 9. Correct outer-window fullscreen false positives and record bounded visibility transitions — complete.
 
 10. Follow actual taskbar occlusion and react to native reorder/foreground/location events — complete.
+11. Unlocked direct move/proportional resize and per-buddy true desktop-layer binding — complete, local0.5.0 active.
 
 ## Decisions
+- Current request: direct movement/resizing when unlocked; add true desktop-layer attachment. Preserve taskbar mode and existing startup/preferences.
 - User authorized autonomous design and implementation on 2026-10-19; no further design approval is required.
 - Separate new repository; do not modify unrelated C:/projects planning files or projects.
 - .NET 8 WPF + Windows Forms NotifyIcon; no third party runtime packages.

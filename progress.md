@@ -60,3 +60,12 @@
 - Final53 Core and88 normal/88 background packaged Windows checks pass, no skips, build0 warnings/errors. Read-only review found no important concerns.
 - Gracefully replaced0.4.1 with0.4.2 process65076. User reduced roster to one buddy while work was ongoing; preserved that latest configuration exactly and retained startup preference/path.
 - Live five-window launch observation after activation recorded no hidden sample and no sampled taskbar-ahead state. Added evidence under artifacts/launch-release; this is finite testing rather than an all-environment claim.
+
+## Desktop editing and desktop layer0.5.0
+- Added unlocked direct movement, proportional corner/Ctrl-wheel resize, hover editing affordances and48–480 requested height. Lock/click-through block direct manipulation. Work-area fitting keeps controls on screen while preserving requested height.
+- Added per-buddy desktop binding to actual visible Progman/WorkerW icon-host parent, child styles, compatible DPI guard, screen/client mapping, floating fallback/status/retry and controlled closed-child recreation. Desktop layer overrides effective topmost; detaching restores its preference.
+- Kept pending editor drafts synchronized with direct edits; relative wheel changes compute after draft flush. Read-only review findings on high-DPI height and native topmost rollback resolved.
+- Final portable build0 warnings/errors;66 Core and108 foreground/108 background packaged Windows checks all pass, no skips. Includes actual native parent/styles/coordinates, Show Desktop exposure, direct edit path, lock/input guards, controlled recreation and prior taskbar/GIF/startup regressions. Physical pointer gestures and real multi-monitor DPI transitions remain manual validation areas.
+- Initial background test failed its fixed350ms shell transition assertion; unchanged binary recheck passed. Replaced timing assumption with bounded actual-exposure wait; final both modes passed. Inspected manager/settings renders.
+- Gracefully exited0.4.2 using its own UI Automation Exit action and launched0.5.0 process62532. Latest roster had two buddies; all existing fields identical, both GIF paths valid, startup hidden preference preserved and Run command points to0.5.0. No error.log. Old configs retain default unbound desktop mode.
+- Local delivery dist/PaceBuddies-0.5.0-win-x64/PaceBuddies.exe and matching ZIP; public GitHub0.4.2 release unchanged.
