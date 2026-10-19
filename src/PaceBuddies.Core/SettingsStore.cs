@@ -5,6 +5,7 @@ namespace PaceBuddies.Core;
 public sealed class SettingsStore(string directory)
 {
     public string DirectoryPath { get; } = directory;
+    private bool preserveBackup;
     private string FilePath => Path.Combine(DirectoryPath,"settings.json");
     private static readonly JsonSerializerOptions Options = new() { WriteIndented=true, Converters={new JsonStringEnumConverter()} };
     public (AppSettings Settings,string? Warning) Load()
@@ -13,6 +14,7 @@ public sealed class SettingsStore(string directory)
         try { return (Read(FilePath),null); }
         catch(Exception ex) when(ex is JsonException or IOException or UnauthorizedAccessException or NotSupportedException)
         {
+            preserveBackup=true;
             var warning="設定檔無法讀取，已嘗試使用備份。";
             try { File.Copy(FilePath,Path.Combine(DirectoryPath,$"settings.corrupt-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.json")); } catch(IOException) { } catch(UnauthorizedAccessException) { }
             try { return (Read(FilePath+".bak"),warning); }
@@ -34,8 +36,9 @@ public sealed class SettingsStore(string directory)
         {
             using(var stream=new FileStream(temp,FileMode.Create,FileAccess.Write,FileShare.None))
             { JsonSerializer.Serialize(stream,settings,Options); stream.Flush(true); }
-            if(File.Exists(FilePath)) File.Replace(temp,FilePath,FilePath+".bak");
+            if(File.Exists(FilePath)) File.Replace(temp,FilePath,preserveBackup ? null : FilePath+".bak");
             else File.Move(temp,FilePath);
+            preserveBackup=false;
         }
         finally { if(File.Exists(temp)) File.Delete(temp); }
     }

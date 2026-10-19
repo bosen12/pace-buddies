@@ -1,49 +1,70 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
-using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using PixelFormat=System.Drawing.Imaging.PixelFormat;
 
 namespace PaceBuddies.Animation;
 
+internal sealed record FrameData(BitmapSource[] Frames,int[] Delays,string Description,bool PixelArt,double AspectRatio,int TargetHeight,long Bytes);
+
+// Each buddy owns a lease; frozen frames can be shared safely.
 public sealed class AnimationAsset : IDisposable
 {
-    public BitmapSource[] Frames { get; }
-    public int[] Delays { get; }
-    public Icon[] TrayFrames { get; }
-    public string Description { get; }
-    public bool PixelArt { get; }
-    public double AspectRatio=>(double)Frames[0].PixelWidth/Frames[0].PixelHeight;
+    private FrameData? data;
+    private Action? release;
+    private Icon[]? icons;
+    private FrameData Data=>data??throw new ObjectDisposedException(nameof(AnimationAsset));
+    public BitmapSource[] Frames=>Data.Frames;
+    public int[] Delays=>Data.Delays;
+    public string Description=>Data.Description;
+    public bool PixelArt=>Data.PixelArt;
+    public double AspectRatio=>Data.AspectRatio;
+    public int TargetPixelHeight=>Data.TargetHeight;
+    public long DecodedBytes=>Data.Bytes;
+    public bool IsDisposed=>data==null;
+    internal AnimationAsset(FrameData data,Action? release=null){this.data=data;this.release=release;}
     public AnimationAsset(List<Bitmap> bitmaps,int[] delays,string description,bool pixelArt)
     {
-        Description=description; Delays=delays; PixelArt=pixelArt;
-        var frames=new List<BitmapSource>(); var icons=new List<Icon>();
         try
         {
-            foreach(var bitmap in bitmaps)
-            {
-                using var png=new MemoryStream(); bitmap.Save(png,ImageFormat.Png); png.Position=0;
-                var frame=BitmapFrame.Create(png,BitmapCreateOptions.PreservePixelFormat,BitmapCacheOption.OnLoad); frame.Freeze(); frames.Add(frame);
-                // Only the recovery manager needs a static native icon; animated frames render in WPF.
-                if(icons.Count>0)continue;
-                using var small=new Bitmap(32,32,PixelFormat.Format32bppArgb);
-                using(var g=Graphics.FromImage(small))
-                {
-                    g.InterpolationMode=pixelArt?System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor:System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                    g.PixelOffsetMode=System.Drawing.Drawing2D.PixelOffsetMode.Half;
-                    var scale=Math.Min(32.0/bitmap.Width,32.0/bitmap.Height);
-                    var w=(int)Math.Round(bitmap.Width*scale); var h=(int)Math.Round(bitmap.Height*scale);
-                    g.DrawImage(bitmap,new Rectangle((32-w)/2,(32-h)/2,w,h));
-                }
-                var handle=small.GetHicon();
-                try { using var borrowed=Icon.FromHandle(handle); icons.Add((Icon)borrowed.Clone()); }
-                finally { DestroyIcon(handle); }
-            }
-            Frames=frames.ToArray(); TrayFrames=icons.ToArray();
+            var frames=bitmaps.Select(ToFrame).ToArray();
+            data=new(frames,delays,description,pixelArt,(double)bitmaps[0].Width/bitmaps[0].Height,bitmaps[0].Height,frames.Sum(f=>(long)f.PixelWidth*f.PixelHeight*4));
         }
-        catch { foreach(var icon in icons) icon.Dispose(); throw; }
-        finally { foreach(var b in bitmaps) b.Dispose(); }
+        finally{foreach(var b in bitmaps)b.Dispose();}
     }
-    public void Dispose() { foreach(var icon in TrayFrames) icon.Dispose(); }
+    internal static BitmapSource ToFrame(Bitmap bitmap)
+    {
+        var bits=bitmap.LockBits(new Rectangle(0,0,bitmap.Width,bitmap.Height),ImageLockMode.ReadOnly,PixelFormat.Format32bppArgb);
+        try
+        {
+            var frame=BitmapSource.Create(bitmap.Width,bitmap.Height,96,96,PixelFormats.Bgra32,null,bits.Scan0,checked(bits.Stride*bitmap.Height),bits.Stride);
+            frame.Freeze();return frame;
+        }
+        finally{bitmap.UnlockBits(bits);}
+    }
+    public Icon[] TrayFrames
+    {
+        get
+        {
+            if(icons!=null)return icons;
+            var frame=Frames[0];
+            using var bitmap=new Bitmap(frame.PixelWidth,frame.PixelHeight,PixelFormat.Format32bppArgb);
+            var bits=bitmap.LockBits(new Rectangle(0,0,bitmap.Width,bitmap.Height),ImageLockMode.WriteOnly,PixelFormat.Format32bppArgb);
+            try{frame.CopyPixels(Int32Rect.Empty,bits.Scan0,bits.Stride*bitmap.Height,bits.Stride);}finally{bitmap.UnlockBits(bits);}
+            using var small=new Bitmap(bitmap,new System.Drawing.Size(32,32));
+            var handle=small.GetHicon();
+            try{using var borrowed=Icon.FromHandle(handle);icons=[(Icon)borrowed.Clone()];}
+            finally{DestroyIcon(handle);}
+            return icons;
+        }
+    }
+    public void Dispose()
+    {
+        if(data==null)return;
+        data=null;foreach(var icon in icons??[])icon.Dispose();icons=null;
+        Interlocked.Exchange(ref release,null)?.Invoke();
+    }
     [DllImport("user32.dll")][return:MarshalAs(UnmanagedType.Bool)] private static extern bool DestroyIcon(IntPtr handle);
 }

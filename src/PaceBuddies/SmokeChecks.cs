@@ -13,13 +13,15 @@ namespace PaceBuddies;
 
 internal static class SmokeChecks
 {
-    public static async Task Run(RuntimeCoordinator coordinator,MainWindow manager,string output)
+    public static async Task Run(RuntimeCoordinator coordinator,MainWindow manager,string output,bool backgroundStart=false)
     {
         Directory.CreateDirectory(output);var results=new List<string>();var skipped=new List<string>();var watch=Stopwatch.StartNew();
         var interactiveDesktop=GetCursorPos(out _);
         void Check(string name,bool value){if(!value)throw new InvalidOperationException(name);results.Add(name);}
         try
         {
+            Check(backgroundStart?"Background launch keeps manager hidden":"Normal launch shows manager",manager.IsVisible!=backgroundStart);
+            if(backgroundStart)manager.Reopen();
             Check("Three independent desktop windows",coordinator.DesktopCount==3);
             Check("Three fixed taskbar buddies outside notification overflow",coordinator.TaskbarCount==3);
             Check("Only one static recovery notification icon",coordinator.ManagerTrayCount==1);
@@ -45,6 +47,10 @@ internal static class SmokeChecks
             Check("Unchanged editor never overwrites externally paused state",coordinator.Buddies.All(b=>b.Config.Paused));
             coordinator.Settings.Buddies.ForEach(b=>b.Paused=false);
             coordinator.SetAllPaused(true);
+            Check("Paused buddies suspend animation timer",!coordinator.AnimationRunning);
+            var unchangedCell=cells.Children[0];
+            coordinator.Apply(coordinator.Buddies[0],false);
+            Check("Ordinary settings updates retain taskbar visuals",ReferenceEquals(unchangedCell,cells.Children[0]));
             manager.ExerciseEditorForCheck();
             Check("Tray pause and later editor edits remain synchronized",coordinator.Buddies.All(b=>b.Config.Paused));
             var nameBox=(System.Windows.Controls.TextBox)manager.FindName("NameBox");
@@ -60,6 +66,68 @@ internal static class SmokeChecks
             await Task.Delay(450);
             Check("Live animation advances",coordinator.Buddies[0].FrameIndex!=initial);
             var fixture=Path.Combine(output,"fixture.gif");
+            var cacheBaseline=GifLoader.CachedBytes;
+            var largeFixture=Path.Combine(output,"large-fixture.gif");
+            var decodeWatch=Stopwatch.StartNew();
+            using(var reduced=await Task.Run(()=>GifLoader.Load(largeFixture,128)))
+            {
+                Check("Large GIF decodes at display height",reduced.Frames[0].PixelHeight==128&&reduced.Frames[0].PixelWidth==256&&reduced.AspectRatio==2);
+                Check("Downscaled frames use one sixteenth of source pixels",reduced.DecodedBytes==48L*256*128*4);
+                using var shared=GifLoader.Load(largeFixture,128);
+                Check("Identical GIFs share frozen frame storage",ReferenceEquals(reduced.Frames[0],shared.Frames[0])&&GifLoader.CachedBytes==cacheBaseline+reduced.DecodedBytes&&shared.Frames.All(f=>f.IsFrozen));
+                reduced.Dispose();Check("Releasing one lease preserves other buddies",shared.Frames.Length==48);
+            }
+            Check("Final lease releases cache allocation",GifLoader.CachedBytes==cacheBaseline);
+            var perAssetRejected=false;
+            try{using var tooLarge=GifLoader.Load(largeFixture,512);}catch(InvalidDataException){perAssetRejected=true;}
+            Check("Per-asset decoded memory budget is enforced",perAssetRejected&&GifLoader.CachedBytes==cacheBaseline);
+            using(var one=GifLoader.Load(largeFixture,384))
+            using(var two=GifLoader.Load(largeFixture,352))
+            {
+                var totalRejected=false;
+                try{using var three=GifLoader.Load(largeFixture,320);}catch(InvalidDataException){totalRejected=true;}
+                Check("Aggregate cache budget is enforced",totalRejected&&GifLoader.CachedBytes<=GifLoader.TotalBudget);
+            }
+            Check("Budget rejection leaves no retained cache entries",GifLoader.CachedBytes==cacheBaseline);
+            File.WriteAllText(Path.Combine(output,"gif-memory.json"),JsonSerializer.Serialize(new{SourceBytes=48L*1024*512*4,DisplayBytes=48L*256*128*4,DisplayHeight=128,ElapsedSeconds=decodeWatch.Elapsed.TotalSeconds}));
+            var raceBuddy=coordinator.Buddies[0];
+            var gifFolder=Path.Combine(coordinator.Store.DirectoryPath,"gifs");
+            var beforeCopies=Directory.Exists(gifFolder)?Directory.GetFiles(gifFolder).Length:0;
+            var pendingImport=coordinator.LoadAppearanceAsync(raceBuddy,largeFixture,true);
+            coordinator.SetBuiltin(raceBuddy,"bird");
+            Check("Late import cannot overwrite a newer builtin choice",!await pendingImport&&raceBuddy.Config.GifPath==null&&raceBuddy.Config.Builtin=="bird"&&raceBuddy.Asset.PixelArt);
+            Check("Cancelled import leaves no owned copy",!Directory.Exists(gifFolder)||Directory.GetFiles(gifFolder).Length==beforeCopies);
+            var removing=coordinator.Add();var pendingRemoval=coordinator.LoadAppearanceAsync(removing,largeFixture,true);coordinator.Remove(removing);
+            Check("Removing a loading buddy cancels its result",!await pendingRemoval&&removing.Asset.IsDisposed);
+            raceBuddy.Config.GifPath=fixture;
+            var restoring=coordinator.RestoreSavedAssetsAsync();coordinator.SetBuiltin(raceBuddy,"cat");await restoring;
+            Check("Saved GIF restoration respects newer appearance choices",raceBuddy.Config.GifPath==null&&raceBuddy.Asset.PixelArt);
+            raceBuddy.Config.GifPath=fixture;await coordinator.RestoreSavedAssetsAsync();
+            Check("Saved GIFs restore asynchronously",raceBuddy.Asset.Frames.Length==3&&!raceBuddy.IsLoading);
+            coordinator.SetBuiltin(raceBuddy,"cat");
+            using(var pressureOne=GifLoader.Load(largeFixture,416))
+            using(var pressureTwo=GifLoader.Load(largeFixture,352))
+            {
+                raceBuddy.Config.GifPath=largeFixture;raceBuddy.Config.Size=240;
+                Check("Cache pressure can reject a startup placeholder",!await coordinator.LoadAppearanceAsync(raceBuddy,largeFixture,false)&&raceBuddy.Asset.PixelArt&&raceBuddy.HasWarning);
+                raceBuddy.Config.Size=96;coordinator.Apply(raceBuddy,false);
+                while(raceBuddy.IsLoading)await Task.Delay(20);
+                Check("Reducing height retries a previously failed GIF",!raceBuddy.Asset.PixelArt&&!raceBuddy.HasWarning&&raceBuddy.Asset.TargetPixelHeight==128);
+            }
+            coordinator.SetBuiltin(raceBuddy,"cat");
+            using(var placeholder=new BuddyRuntime(new BuddyConfig{GifPath=largeFixture}))
+                Check("Runtime construction uses cheap placeholder before restoration",placeholder.Asset.PixelArt);
+            var registryPath=@"Software\PaceBuddies\Tests\"+Guid.NewGuid().ToString("N");
+            try
+            {
+                var startup=new WindowsStartupRegistration(registryPath);
+                startup.SetEnabled(true,@"C:\My App\PaceBuddies.exe",true);
+                Check("Startup stores quoted background command",startup.ReadCommand()=="\"C:\\My App\\PaceBuddies.exe\" --background");
+                startup.SetEnabled(true,@"C:\My App\PaceBuddies.exe",false);
+                Check("Startup can launch manager visibly",startup.ReadCommand()=="\"C:\\My App\\PaceBuddies.exe\"");
+                startup.SetEnabled(false,@"C:\My App\PaceBuddies.exe",true);Check("Startup can be disabled",!startup.IsEnabled);
+            }
+            finally{Microsoft.Win32.Registry.CurrentUser.DeleteSubKey(registryPath,false);}
             using(var gif=GifLoader.Load(fixture))
             {
                 Check("GIF frame count",gif.Frames.Length==3);
@@ -89,6 +157,7 @@ internal static class SmokeChecks
             coordinator.Remove(added);Check("Remove releases windows and taskbar cells",coordinator.Buddies.Count==3&&coordinator.DesktopCount==3&&coordinator.TaskbarCount==3);
             coordinator.EditExternally(()=>{foreach(var b in coordinator.Buddies)b.Config.ShowTray=false;});
             Check("Disabling fixed buddies hides strip while retaining manager",!dock.IsVisible&&coordinator.TaskbarCount==0&&coordinator.ManagerTrayCount==1);
+            Check("Empty taskbar releases all visual references",cells.Children.Count==0);
             coordinator.EditExternally(()=>{foreach(var b in coordinator.Buddies)b.Config.ShowTray=true;});
             Check("Fixed buddies can be restored",dock.IsVisible&&coordinator.TaskbarCount==3);
             await manager.ImportGif(Path.Combine(output,"wide-fixture.gif"));
@@ -151,6 +220,12 @@ internal static class SmokeChecks
             Check("Small work area keeps footer inside window",footer.TranslatePoint(new Point(0,footer.ActualHeight),manager).Y<=manager.ActualHeight);
             Capture(desktop,Path.Combine(output,"desktop-buddy.png"));
             Capture(dock,Path.Combine(output,"fixed-taskbar-buddies.png"));
+            manager.Hide();
+            coordinator.EditExternally(()=>{foreach(var b in coordinator.Buddies){b.Config.ShowTray=false;b.Config.ShowDesktop=false;}});
+            Check("Invisible buddies suspend animation timer",!coordinator.AnimationRunning);
+            manager.Reopen();Check("Visible manager resumes animation timer",coordinator.AnimationRunning);
+            foreach(var b in coordinator.Buddies.ToArray())coordinator.Remove(b);
+            Check("Last buddy removal clears editor and taskbar references",((System.Windows.Controls.StackPanel)manager.FindName("Editor")).DataContext==null&&cells.Children.Count==0);
             File.WriteAllText(Path.Combine(output,"smoke-result.json"),JsonSerializer.Serialize(new{Success=true,Checks=results,SkippedChecks=skipped,InteractiveDesktopAvailable=interactiveDesktop,Taskbar=new{Bar=anchor?.Bar,Notification=anchor?.Notification,OccupiedRight=anchor?.OccupiedRight,Scale=anchor?.Scale},ActualTaskbarBounds=dockRect,Telemetry=coordinator.Snapshot,ElapsedSeconds=watch.Elapsed.TotalSeconds},new JsonSerializerOptions{WriteIndented=true}));
         }
         catch(Exception ex)

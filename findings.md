@@ -8,3 +8,11 @@
 - Taskbar correction 2026-10-19: live workstation is Windows build 26200; Shell_TrayWnd bounds (0,1032)-(1920,1080), TrayNotifyWnd (1623,1032)-(1920,1080), current task buttons end at x1050. This leaves room for a separate transparent strip immediately before x1623.
 - A standard notification icon does not reserve a slot left of the chevron. Use a separate no-activate transparent window anchored to the native taskbar notification rectangle, with no shell injection or registry changes. Poll geometry to follow tray size/DPI changes and shell recreation. Hide with auto-hidden taskbar and fullscreen applications; avoid overlap with task buttons, and report insufficient space explicitly.
 - Primary implementation reference inspected for geometry only: https://github.com/zhongyang219/TrafficMonitor/blob/master/TrafficMonitor/Win11TaskbarDlg.cpp uses Shell_TrayWnd/TrayNotifyWnd rectangles. No source copied.
+
+## Optimization implementation
+- File.Replace must not rotate a known-corrupt primary over the backup used for recovery; preserve it through the first successful recovery save.
+- WPF frozen BitmapSource frames can be shared across independent clocks. Keep cache metadata/refcount locks separate from serialized decoding so UI disposal never blocks on another buddy's decoder.
+- InvalidDataException needs an explicit expected-error filter; it is not covered by the IOException pattern here.
+- Failed decoding must remember the attempted target separately from the current asset. Retry on a changed target while avoiding 1Hz retry loops for unchanged failures.
+- Login startup is a quoted per-user HKCU Run entry with --background by default. Keep registration commands functional for second-instance launches, suppress wakeup for background duplicates, and handle both registry reads and writes failing.
+- 0.4.0 verification: 46 Core checks and 77 checks each for foreground/background packaged starts pass. Active frame payload budget checks are distinct from total process memory guarantees.

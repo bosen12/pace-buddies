@@ -64,7 +64,22 @@ try {
     var recovery = store.Load();
     Check("corrupt settings recover backup", recovery.Settings.Buddies[0].Name == "changed" && recovery.Warning != null);
     Check("corrupt settings preserved", Directory.GetFiles(folder,"settings.corrupt-*.json").Length == 1);
+    store.Save(recovery.Settings);
+    var backupJson=File.ReadAllText(Path.Combine(folder,"settings.json.bak"));
+    using(var backup=System.Text.Json.JsonDocument.Parse(backupJson))
+        Check("save after recovery keeps valid backup",backup.RootElement.ValueKind==System.Text.Json.JsonValueKind.Object);
+    File.WriteAllText(Path.Combine(folder,"settings.json"),"second corruption");
+    Check("second corruption still recovers prior settings",store.Load().Settings.Buddies[0].Name=="changed");
     File.WriteAllText(Path.Combine(folder,"settings.json"),"null");
     Check("null JSON recovers", store.Load().Settings.Buddies.Count > 0);
 } finally { if(Directory.Exists(folder)) Directory.Delete(folder,true); }
+using(var requests=new LatestRequest())
+{
+    var first=requests.Begin();var second=requests.Begin();
+    Check("new appearance cancels old request",first.Cancellation.IsCancellationRequested&&!requests.IsCurrent(first)&&requests.IsCurrent(second));
+    requests.Invalidate();Check("builtin choice invalidates pending import",!requests.IsCurrent(second)&&second.Cancellation.IsCancellationRequested);
+    var third=requests.Begin();requests.Dispose();Check("removed buddy cancels pending request",!requests.IsCurrent(third)&&third.Cancellation.IsCancellationRequested);
+}
+Check("startup quotes executable with spaces",StartupCommand.Build(@"C:\My App\PaceBuddies.exe",true)=="\"C:\\My App\\PaceBuddies.exe\" --background");
+Check("startup can show manager",StartupCommand.Build(@"C:\App.exe",false)=="\"C:\\App.exe\"");
 Console.WriteLine($"All {count} behavior checks passed.");

@@ -36,3 +36,12 @@
 - Final self-contained 0.3.0: 39 Core checks and 50 Windows integration checks passed; one on-screen hit-test explicitly skipped because input-desktop access is unavailable. Build has 0 warnings/errors.
 - Reviewed app-rendered wide GIF output and overflow viewport; both preserve full height and natural ratio. A 64:1 desktop panorama stays screen-bounded and remains scrollable to its right edge.
 - Used the prior app's own Exit action to save settings and close cleanly, then launched dist/PaceBuddies-0.3.0-win-x64/PaceBuddies.exe. Existing user settings/GIF files preserved. No process force-kill or security setting changes.
+
+## Optimization release 0.4.0
+- Implemented backup recovery rotation, latest-choice cancellation, empty editor/strip cleanup, downscaled frozen shared GIF frames with byte budgets and serialized background restoration.
+- Added idle animation suspension, speed-notification deduplication, structural taskbar cell reuse and current-user login/background startup controls.
+- Added regression fixtures and checks for cache sharing/release/budgets, stale import/removal/restore, failed-load size recovery, hidden/background launch and registry command enable/disable.
+- Resolved read-only review findings. Budget failure regression exposed InvalidDataException escaping the expected-error filter; included it and verified the failure now becomes a warning and lower height recovers.
+- Final portable build: 46 Core checks; 77 normal + 77 background Windows checks, all pass, no skips. Build 0 warnings/errors. Render inspection includes short 911×512 DIP work area.
+- Test GIF frame payload: 96 MiB at source dimensions to 6 MiB at height128. This does not measure whole-process memory savings.
+- Launched verified 0.4.0.0 with --enable-startup --background; startup Run command and unchanged existing four-buddy settings verified. No prior process remained at activation; no force-kill used.

@@ -1,5 +1,20 @@
 # Release verification · 2026-10-19
 
+## 0.4.0 optimization and login startup
+
+- Release build: **0 warnings, 0 errors**. **46 Core checks passed**.
+- Self-contained executable passed **77 Windows integration checks in normal mode** and **77 in background-start mode**, with no skipped checks. Evidence: `artifacts/optimization-final/` and `artifacts/optimization-final-background/`.
+- The accessible Windows 11 input desktop permitted actual on-screen hit testing this time. Native strip bounds x1475–1619 remain left of the notification area at x1623 and beyond app buttons ending x1050; no-activate style verified.
+- Backup regression failed before the fix: saving recovered settings rotated corrupt primary text into the healthy backup. New tests verify a valid backup after saving and recovery after a second corruption.
+- GIF test input: 1024×512, 48 frames. Original-resolution 32-bit frame payload is **96 MiB**; 128-pixel-high decoded payload is **6 MiB**, a **93.75% reduction**. This is frame data, not whole-process working set. Identical content/height shares frozen frame storage; final lease releases its cache entry. Per-asset 64 MiB and aggregate active-cache 128 MiB payload limits are tested.
+- Serialized background decode retains source dimensions/ratio and original files, removes the PNG conversion pass and full original-size bitmap list. Saved GIFs load after the manager is prepared. Generation/cancellation checks prevent stale restore/import/resize results from replacing later choices; cancelled imports clean their owned copies.
+- Cache bookkeeping locks are short; final lease release does not wait for an unrelated decode. A pressure regression initially exposed an uncaught InvalidDataException; this now produces a user-facing warning. Reducing height retries a previously failed placeholder; unchanged failed targets do not loop every second.
+- All-paused and fully-hidden states stop the animation timer; visibility resumes it. Ordinary settings changes retain taskbar visuals, and final buddy removal clears editor/taskbar references.
+- Startup commands quote executable paths and support background/visible launch. Tests use a dedicated temporary HKCU test key, never the actual Run value. UI retains prior state on write errors and remains usable on read errors. Second background launches do not wake the manager.
+- Read-only review findings resolved: cross-buddy decode lock stalls, single-instance startup flags, registry read errors, and failed-GIF size recovery. Inspected normal and small-work-area app renders; startup settings collapse on short windows to preserve roster scrolling.
+- Activated **0.4.0.0**, process 30956. Existing four buddies and their display/settings values were preserved. Current-user Run value verified as the quoted 0.4.0 executable plus `--background`; manager initially hidden. Actual Windows logout/reboot was not required or performed.
+- Physical mixed-DPI transitions, other GPU drivers, Windows 10 and third-party taskbars retain their previously documented broader validation limits.
+
 ## 0.3.0 height-first GIFs
 
 - 39 Core checks cover full taskbar canvas height, natural width for 4:1 and portrait images, equal height with labels, horizontal overflow and high-DPI geometry.

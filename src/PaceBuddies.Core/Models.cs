@@ -45,6 +45,7 @@ public sealed class BuddyConfig
 public sealed class AppSettings
 {
     public int Version { get; set; } = 1;
+    public bool LoginStartHidden { get; set; } = true;
     public List<BuddyConfig> Buddies { get; set; } = [];
     public static AppSettings CreateDefault() => new() { Buddies = [
         new() { Name = "麻糬", Builtin = "cat", Source = MetricSource.Cpu },

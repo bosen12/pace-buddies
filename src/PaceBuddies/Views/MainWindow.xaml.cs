@@ -17,12 +17,19 @@ public partial class MainWindow : Window
     private bool loading=true;
     private bool dirty;
     private BuddyRuntime? selected;
+    private readonly WindowsStartupRegistration startup;
+    private bool startupEnabled;
     public bool AllowClose { get; set; }
-    public MainWindow(RuntimeCoordinator coordinator)
+    public MainWindow(RuntimeCoordinator coordinator,WindowsStartupRegistration? startup=null)
     {
         this.coordinator=coordinator;
+        this.startup=startup??new();
         InitializeComponent();
+        AssetWarning.SetBinding(TextBlock.TextProperty,new System.Windows.Data.Binding(nameof(BuddyRuntime.Warning)));
+        AssetWarning.SetBinding(VisibilityProperty,new System.Windows.Data.Binding(nameof(BuddyRuntime.HasWarning)){Converter=new BooleanToVisibilityConverter()});
         FitToWorkArea(SystemParameters.WorkArea);
+        StartupPanel.IsExpanded=Height>=650;
+        SizeChanged+=(_,e)=>{if((e.PreviousSize.Height>=650)!=(e.NewSize.Height>=650))StartupPanel.IsExpanded=e.NewSize.Height>=650;};
         cpu=new("CPU","處理器","#3976B9");memory=new("RAM","實體記憶體","#A97946");gpu=new("GPU","最忙碌引擎","#578C81");
         MetricHost.Children.Add(cpu);MetricHost.Children.Add(memory);MetricHost.Children.Add(gpu);
         Roster.ItemsSource=coordinator.Buddies;
@@ -36,8 +43,30 @@ public partial class MainWindow : Window
         coordinator.BuddyOpened+=OpenBuddy;
         coordinator.TaskbarStatusChanged+=text=>DockStatus.Text=text;
         DockStatus.Text=coordinator.TaskbarStatus;
+        try{startupEnabled=this.startup.IsEnabled;}
+        catch(Exception ex) when(ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        {StartupBox.IsEnabled=false;ShowNotice("無法讀取開機啟動設定："+ex.Message);}
+        StartupBox.IsChecked=startupEnabled;
+        BackgroundBox.IsChecked=coordinator.Settings.LoginStartHidden;
+        BackgroundBox.IsEnabled=StartupBox.IsChecked==true;
+        IsVisibleChanged+=(_,_)=>coordinator.SetManagerVisible(IsVisible&&WindowState!=WindowState.Minimized);
+        StateChanged+=(_,_)=>coordinator.SetManagerVisible(IsVisible&&WindowState!=WindowState.Minimized);
         loading=false;
         if(coordinator.Buddies.Count>0) Roster.SelectedIndex=0;else LoadSelected();
+    }
+    private void OnStartupChanged(object sender,RoutedEventArgs e)
+    {
+        if(loading)return;
+        try
+        {
+            var hidden=BackgroundBox.IsChecked==true;
+            startup.SetEnabled(StartupBox.IsChecked==true,Environment.ProcessPath!,hidden);
+            startupEnabled=StartupBox.IsChecked==true;
+            coordinator.Settings.LoginStartHidden=hidden;coordinator.SaveSoon();
+            BackgroundBox.IsEnabled=StartupBox.IsChecked==true;
+        }
+        catch(Exception ex) when(ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        {loading=true;StartupBox.IsChecked=startupEnabled;BackgroundBox.IsChecked=coordinator.Settings.LoginStartHidden;BackgroundBox.IsEnabled=startupEnabled;loading=false;ShowNotice("無法更新開機啟動設定："+ex.Message);}
     }
     public void ShowNotice(string message) {Status.Text=message;Status.Foreground=new SolidColorBrush(Color.FromRgb(164,100,96));}
     public void FitToWorkArea(Rect area)
@@ -52,6 +81,7 @@ public partial class MainWindow : Window
         loading=true;
         Editor.Visibility=selected==null?Visibility.Collapsed:Visibility.Visible;
         EmptyState.Visibility=selected==null?Visibility.Visible:Visibility.Collapsed;
+        Editor.DataContext=selected;
         if(selected!=null)
         {
             var b=selected.Config;Editor.DataContext=selected;
@@ -62,7 +92,6 @@ public partial class MainWindow : Window
             LabelBox.SelectedIndex=(int)b.Label;MinSlider.Value=b.MinimumSpeed;MaxSlider.Value=b.MaximumSpeed;
             ResponseSlider.Value=b.ResponseSeconds;SizeSlider.Value=b.Size;
             TopmostBox.IsChecked=b.Topmost;LockBox.IsChecked=b.Locked;ThroughBox.IsChecked=b.ClickThrough;
-            AssetWarning.Text=selected.Warning??"";AssetWarning.Visibility=selected.Warning!=null?Visibility.Visible:Visibility.Collapsed;
         }
         loading=false;dirty=false;UpdateValueLabels();UpdateCurve();
     }
@@ -106,8 +135,7 @@ public partial class MainWindow : Window
         if(loading||selected==null||SpriteBox.SelectedIndex<0||SpriteBox.SelectedIndex==3)return;
         FlushEdits();
         var kind=new[]{"cat","blob","bird"}[SpriteBox.SelectedIndex];
-        selected.Config.Builtin=kind;selected.Config.GifPath=null;selected.ReplaceAsset(BuiltinSprites.Create(kind));
-        coordinator.Apply(selected);AssetWarning.Visibility=Visibility.Collapsed;
+        coordinator.SetBuiltin(selected,kind);
     }
     private void UpdateCurve()
     {
@@ -146,13 +174,11 @@ public partial class MainWindow : Window
         ImportButton.IsEnabled=false;ShowNotice("正在準備 GIF…");
         try
         {
-            var imported=await Task.Run(()=>GifLoader.Import(path,Path.Combine(coordinator.Store.DirectoryPath,"gifs")));
-            if(!coordinator.Buddies.Contains(buddy)){imported.Asset.Dispose();return;}
-            buddy.Config.GifPath=imported.Path;buddy.ReplaceAsset(imported.Asset);coordinator.Apply(buddy);
+            if(!await coordinator.LoadAppearanceAsync(buddy,path,true))return;
             if(ReferenceEquals(selected,buddy)){FlushEdits();LoadSelected();}
             Status.Text="GIF 已匯入，原始檔案移動後仍可使用。";Status.Foreground=(Brush)FindResource("Muted");
         }
-        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException or ArgumentException or OutOfMemoryException or System.Runtime.InteropServices.ExternalException)
+        catch(Exception ex) when(ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or OutOfMemoryException or System.Runtime.InteropServices.ExternalException)
         {ShowNotice("GIF 匯入失敗："+ex.Message);}
         finally{ImportButton.IsEnabled=true;}
     }

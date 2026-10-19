@@ -21,28 +21,26 @@ public sealed class BuddyRuntime : INotifyPropertyChanged,IDisposable
     public double PreviewWidth=>106*Asset.AspectRatio;
     public BitmapScalingMode ScalingMode => Asset.PixelArt?BitmapScalingMode.NearestNeighbor:BitmapScalingMode.HighQuality;
     public string? Warning { get; private set; }
+    public bool HasWarning=>Warning!=null;
     public double CurrentSpeed { get; private set; }
     private double? usage;
+    private string? lastSpeed;
+    public LatestRequest Appearance { get; }=new();
+    public bool IsLoading { get; set; }
+    public bool AppearanceInitialized { get; set; }
+    public int AttemptedHeight { get; set; }
     public event PropertyChangedEventHandler? PropertyChanged;
     public BuddyRuntime(BuddyConfig config)
     {
         Config=config;
-        Asset=LoadAsset(); clock=new(Asset.Delays); CurrentSpeed=config.MinimumSpeed;
+        Asset=BuiltinSprites.Create(config.Builtin); clock=new(Asset.Delays); CurrentSpeed=config.MinimumSpeed;
     }
-    private AnimationAsset LoadAsset()
-    {
-        if(!string.IsNullOrEmpty(Config.GifPath))
-        {
-            try { return GifLoader.Load(Config.GifPath); }
-            catch(Exception ex) when(ex is IOException or UnauthorizedAccessException or ArgumentException or OutOfMemoryException or System.Runtime.InteropServices.ExternalException)
-            { Warning="GIF 無法載入，暫時使用內建角色。請重新匯入。"; }
-        }
-        return BuiltinSprites.Create(Config.Builtin);
-    }
+    public void SetWarning(string warning){Warning=warning;Changed(nameof(Warning));Changed(nameof(HasWarning));}
+    public void ClearWarning(){if(Warning==null)return;Warning=null;Changed(nameof(Warning));Changed(nameof(HasWarning));}
     public void ReplaceAsset(AnimationAsset asset)
     {
         var old=Asset; Asset=asset; FrameIndex=0; clock=new(asset.Delays); Warning=null;
-        Changed(nameof(Frame)); Changed(nameof(AssetDetail)); Changed(nameof(ScalingMode)); Changed(nameof(PreviewWidth)); old.Dispose();
+        Changed(nameof(Frame)); Changed(nameof(AssetDetail)); Changed(nameof(ScalingMode)); Changed(nameof(PreviewWidth));Changed(nameof(Warning));Changed(nameof(HasWarning)); old.Dispose();
     }
     public void SetSample(MetricSnapshot sample) { usage=sample.Get(Config.Source); Changed(nameof(Reading)); Changed(nameof(Detail)); }
     public bool Advance(double elapsed)
@@ -54,7 +52,7 @@ public sealed class BuddyRuntime : INotifyPropertyChanged,IDisposable
         FrameIndex=next; Changed(nameof(Frame)); return true;
     }
     public void NotifySettings() { foreach(var p in new[]{nameof(Name),nameof(SourceName),nameof(Reading),nameof(SpeedText),nameof(Detail)}) Changed(p); }
-    public void NotifySpeed() { Changed(nameof(SpeedText)); Changed(nameof(Detail)); }
+    public void NotifySpeed() {if(lastSpeed==SpeedText)return;lastSpeed=SpeedText; Changed(nameof(SpeedText)); Changed(nameof(Detail)); }
     private void Changed([CallerMemberName] string? name=null) => PropertyChanged?.Invoke(this,new(name));
-    public void Dispose()=>Asset.Dispose();
+    public void Dispose(){Appearance.Dispose();Asset.Dispose();}
 }

@@ -49,18 +49,21 @@ public sealed class TaskbarBuddyWindow : Window
     }
     public void Synchronize(IEnumerable<BuddyRuntime> values)
     {
-        buddies=values.Where(b=>b.Config.ShowTray).ToArray();layoutKey="";RefreshAnchor();
+        buddies=values.Where(b=>b.Config.ShowTray).ToArray();
+        // Release removed buddies even while the taskbar is hidden or unavailable.
+        if(row.Children.OfType<Border>().Any(cell=>cell.DataContext is BuddyRuntime b&&!buddies.Contains(b)))ClearCells();
+        RefreshAnchor();
     }
     public void RefreshAnchor()
     {
-        if(buddies.Length==0){Placement=null;Hide();SetStatus("工作列角色已關閉");return;}
+        if(buddies.Length==0){ClearCells();Placement=null;Hide();SetStatus("工作列角色已關閉");return;}
         var anchor=NativeTaskbarLocator.Locate();
         if(anchor==null){Placement=null;Hide();SetStatus("無法定位工作列；角色不會移入隱藏圖示區。可先使用桌面模式。");return;}
         if(!anchor.Visible){Hide();SetStatus("跟隨工作列自動隱藏，或暫停顯示於全螢幕程式上方");return;}
         var placement=TaskbarLayout.Calculate(anchor.Bar,anchor.Notification,anchor.OccupiedRight,anchor.Scale,buddies.Select(b=>b.Config.Label==LabelMode.Always).ToArray(),buddies.Select(b=>b.Asset.AspectRatio).ToArray());
         Placement=placement;
         if(placement==null){Hide();SetStatus("工作列空間不足，或目前工作列配置不支援。可減少角色數或使用桌面模式。");return;}
-        var key=$"{anchor.Scale}:{placement.Bounds.Height}:{placement.Bounds.Width}:{placement.Scrollable}:"+string.Join(",",placement.CellWidths);
+        var key=$"{anchor.Scale}:{placement.Bounds.Height}:{placement.Bounds.Width}:{placement.Scrollable}:"+string.Join(",",buddies.Select(b=>$"{b.Config.Id}:{b.Config.Label}:{b.Asset.AspectRatio}"))+":"+string.Join(",",placement.CellWidths);
         if(key!=layoutKey){BuildCells(placement,anchor.Scale);layoutKey=key;}
         var r=placement.Bounds;
         Width=r.Width/anchor.Scale;Height=r.Height/anchor.Scale;
@@ -71,7 +74,7 @@ public sealed class TaskbarBuddyWindow : Window
     private void BuildCells(TaskbarPlacement placement,double scale)
     {
         var oldOffset=viewport.HorizontalOffset;
-        row.Children.Clear();
+        ClearCells();
         host.ColumnDefinitions[0].Width=new GridLength(placement.ScrollButtonWidth/scale);
         host.ColumnDefinitions[2].Width=new GridLength(placement.ScrollButtonWidth/scale);
         previous.Visibility=next.Visibility=placement.Scrollable?Visibility.Visible:Visibility.Collapsed;
@@ -101,6 +104,16 @@ public sealed class TaskbarBuddyWindow : Window
             cell.ContextMenu=menu;row.Children.Add(cell);
         }
         viewport.ScrollToHorizontalOffset(placement.Scrollable?oldOffset:0);
+    }
+    private void ClearCells()
+    {
+        foreach(var cell in row.Children.OfType<Border>())
+        {
+            if(cell.ContextMenu is { } menu){menu.IsOpen=false;menu.Items.Clear();cell.ContextMenu=null;}
+            if(cell.ToolTip is ToolTip tip){tip.IsOpen=false;tip.Content=null;tip.DataContext=null;cell.ToolTip=null;}
+            cell.DataContext=null;cell.Child=null;
+        }
+        row.Children.Clear();layoutKey="";
     }
     private void SetStatus(string value){if(status==value)return;status=value;StatusChanged?.Invoke(value);}
     [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")] private static extern IntPtr GetWindowLongPtr(IntPtr handle,int index);

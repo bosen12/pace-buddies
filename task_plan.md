@@ -4,10 +4,10 @@
 Deliver a usable native Windows app with independent animated resource buddies in the system tray and on the desktop, arbitrary GIF import, and a distinctive Traditional Chinese manager.
 
 ## Next Step
-None. Height-first GIF display verified, packaged and running as 0.3.0 with existing settings.
+Optimization release delivered; verified 0.4.0 is running with current-user background login startup enabled.
 
 ## Current Phase
-Complete
+Optimization release (complete)
 
 ## Phases
 1. Design and upstream evaluation — complete.
@@ -17,6 +17,7 @@ Complete
 5. Integration checks, render inspection, portable packaging and documentation — complete.
 6. Replace per-buddy notification icons with a taskbar-anchored animation strip left of the notification-area chevron; preserve desktop mode and settings — complete.
 7. Fill available GIF height, derive widths from aspect ratio, move values beside animations and support horizontal overflow — complete.
+8. Fix audited backup/import/retention bugs; bounded shared GIF decoding, asynchronous startup, idle animation suspension and login startup — complete.
 
 ## Decisions
 - User authorized autonomous design and implementation on 2026-10-19; no further design approval is required.
