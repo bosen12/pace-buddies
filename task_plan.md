@@ -4,10 +4,10 @@
 Deliver a usable native Windows app with independent animated resource buddies in the system tray and on the desktop, arbitrary GIF import, and a distinctive Traditional Chinese manager.
 
 ## Next Step
-Local desktop composition correction verified/activated in0.5.2; publish the patch to the previously requested GitHub release channel.
+0.5.2 desktop composition correction is active locally and published as the latest GitHub release. Await user feedback.
 
 ## Current Phase
-0.5.2 patch publication (in_progress)
+0.5.2 patch publication (complete)
 
 ## Phases
 1. Design and upstream evaluation — complete.
