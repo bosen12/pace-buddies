@@ -45,3 +45,10 @@
 - Final portable build: 46 Core checks; 77 normal + 77 background Windows checks, all pass, no skips. Build 0 warnings/errors. Render inspection includes short 911×512 DIP work area.
 - Test GIF frame payload: 96 MiB at source dimensions to 6 MiB at height128. This does not measure whole-process memory savings.
 - Launched verified 0.4.0.0 with --enable-startup --background; startup Run command and unchanged existing four-buddy settings verified. No prior process remained at activation; no force-kill used.
+
+## Taskbar visibility correction 0.4.1
+- Reproduced a real NativeTaskbarLocator false positive using an ordinary bordered monitor-sized foreground window. Outer bounds cover the screen while the client has a title bar/borders; old code hid the strip. Red result saved before fix.
+- Use screen-coordinate client bounds with small edge tolerance; distinguish fullscreen/autohide reasons and keep bounded local status-transition logs.
+- 53 Core checks and 84 normal/84 background packaged Windows checks pass with no skipped checks. Verified normal/maximized visibility, borderless fullscreen hide, return and repeated transitions. Read-only review found no important issue.
+- Gracefully exited 0.4.0 through its own UI Automation Exit action; started 0.4.1 process81808. Verified all four buddy configs unchanged, GIF paths valid, startup preference preserved/path updated and actual status shows strip active.
+- This addresses a reproduced cause; other intermittent shell/space causes can now be distinguished from log/status, without recording other-app titles/content.

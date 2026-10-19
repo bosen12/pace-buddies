@@ -53,7 +53,7 @@ public sealed class RuntimeCoordinator : IDisposable
         animationTimer.Tick+=(_,_)=>Animate();
         taskbar=new(buddy=>{if(BuddyOpened!=null)BuddyOpened(buddy);else open();},EditExternally);
         taskbar.IsVisibleChanged+=(_,_)=>UpdateAnimationState();
-        taskbar.StatusChanged+=text=>TaskbarStatusChanged?.Invoke(text);
+        taskbar.StatusChanged+=text=>{RecordTaskbarStatus(text);TaskbarStatusChanged?.Invoke(text);};
         foreach(var config in settings.Buddies) {var runtime=new BuddyRuntime(config);Buddies.Add(runtime);Apply(runtime,false);}
         monitor.Sampled+=sample=>Application.Current.Dispatcher.BeginInvoke(()=>
         {
@@ -180,6 +180,17 @@ public sealed class RuntimeCoordinator : IDisposable
         ExternalSettingsChanged?.Invoke();SaveSoon();
     }
     public void SaveSoon() {saveTimer.Stop();saveTimer.Start();}
+    private void RecordTaskbarStatus(string status)
+    {
+        try
+        {
+            Directory.CreateDirectory(Store.DirectoryPath);
+            var path=Path.Combine(Store.DirectoryPath,"taskbar-status.log");
+            if(File.Exists(path)&&new FileInfo(path).Length>64*1024)File.Move(path,path+".previous",true);
+            File.AppendAllText(path,$"{DateTimeOffset.Now:O} {status}{Environment.NewLine}");
+        }
+        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException){ }
+    }
     public bool Save()
     {
         try {Store.Save(Settings);return true;}

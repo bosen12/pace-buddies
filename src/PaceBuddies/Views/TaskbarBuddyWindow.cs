@@ -59,7 +59,7 @@ public sealed class TaskbarBuddyWindow : Window
         if(buddies.Length==0){ClearCells();Placement=null;Hide();SetStatus("工作列角色已關閉");return;}
         var anchor=NativeTaskbarLocator.Locate();
         if(anchor==null){Placement=null;Hide();SetStatus("無法定位工作列；角色不會移入隱藏圖示區。可先使用桌面模式。");return;}
-        if(!anchor.Visible){Hide();SetStatus("跟隨工作列自動隱藏，或暫停顯示於全螢幕程式上方");return;}
+        if(!anchor.Visible){Hide();SetStatus(anchor.HiddenReason==TaskbarHiddenReason.Fullscreen?"全螢幕程式使用中；離開全螢幕後會恢復角色":"跟隨工作列自動隱藏；工作列顯示後會恢復角色");return;}
         var placement=TaskbarLayout.Calculate(anchor.Bar,anchor.Notification,anchor.OccupiedRight,anchor.Scale,buddies.Select(b=>b.Config.Label==LabelMode.Always).ToArray(),buddies.Select(b=>b.Asset.AspectRatio).ToArray());
         Placement=placement;
         if(placement==null){Hide();SetStatus("工作列空間不足，或目前工作列配置不支援。可減少角色數或使用桌面模式。");return;}

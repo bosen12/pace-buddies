@@ -4,7 +4,11 @@ using Forms=System.Windows.Forms;
 
 namespace PaceBuddies.Services;
 
-public sealed record TaskbarAnchor(IntPtr Handle,PixelRect Bar,PixelRect Notification,int OccupiedRight,double Scale,bool Visible);
+public enum TaskbarHiddenReason { None,AutoHidden,Fullscreen }
+public sealed record TaskbarAnchor(IntPtr Handle,PixelRect Bar,PixelRect Notification,int OccupiedRight,double Scale,bool Visible)
+{
+    public TaskbarHiddenReason HiddenReason { get; init; }
+}
 
 public static class NativeTaskbarLocator
 {
@@ -29,20 +33,28 @@ public static class NativeTaskbarLocator
         // Auto-hidden taskbars often leave only a 1–2 pixel sliver on screen.
         var intersectionHeight=Math.Min(rect.Bottom,monitor.Bottom)-Math.Max(rect.Top,monitor.Top);
         visible&=intersectionHeight>=rect.Height*.75;
+        var reason=visible?TaskbarHiddenReason.None:TaskbarHiddenReason.AutoHidden;
         var foreground=GetForegroundWindow();
         if(foreground!=IntPtr.Zero&&foreground!=bar)
         {
             var name=new StringBuilder(256);GetClassName(foreground,name,name.Capacity);
-            if(name.ToString() is not ("Progman" or "WorkerW" or "Shell_TrayWnd")&&GetWindowRect(foreground,out var front))
-                if(front.Left<=monitor.Left&&front.Top<=monitor.Top&&front.Right>=monitor.Right&&front.Bottom>=monitor.Bottom)
-                    visible=false;
+            if(name.ToString() is not ("Progman" or "WorkerW" or "Shell_TrayWnd")&&GetClientRect(foreground,out var client))
+            {
+                var origin=new NativePoint(client.Left,client.Top);
+                if(ClientToScreen(foreground,ref origin)
+                    &&FullscreenDetection.CoversMonitor(new(origin.X,origin.Y,origin.X+client.Width,origin.Y+client.Height),new(monitor.Left,monitor.Top,monitor.Right,monitor.Bottom)))
+                {visible=false;reason=TaskbarHiddenReason.Fullscreen;}
+            }
         }
-        return new(bar,rect,tray,occupied,scale,visible);
+        return new(bar,rect,tray,occupied,scale,visible){HiddenReason=reason};
     }
     private delegate bool EnumWindow(IntPtr handle,IntPtr data);
     [DllImport("user32.dll",CharSet=CharSet.Unicode,EntryPoint="FindWindowW")] private static extern IntPtr FindWindow(string name,string? title);
     [DllImport("user32.dll",CharSet=CharSet.Unicode,EntryPoint="FindWindowExW")] private static extern IntPtr FindWindowEx(IntPtr parent,IntPtr after,string name,string? title);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr handle,out PixelRect rect);
+    [StructLayout(LayoutKind.Sequential)] private struct NativePoint(int x,int y){public int X=x,Y=y;}
+    [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr handle,out PixelRect rect);
+    [DllImport("user32.dll")] private static extern bool ClientToScreen(IntPtr handle,ref NativePoint point);
     [DllImport("user32.dll")] private static extern bool EnumChildWindows(IntPtr handle,EnumWindow callback,IntPtr data);
     [DllImport("user32.dll",CharSet=CharSet.Unicode,EntryPoint="GetClassNameW")] private static extern int GetClassName(IntPtr handle,StringBuilder name,int count);
     [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr handle);

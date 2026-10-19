@@ -16,3 +16,8 @@
 - Failed decoding must remember the attempted target separately from the current asset. Retry on a changed target while avoiding 1Hz retry loops for unchanged failures.
 - Login startup is a quoted per-user HKCU Run entry with --background by default. Keep registration commands functional for second-instance launches, suppress wakeup for background duplicates, and handle both registry reads and writes failing.
 - 0.4.0 verification: 46 Core checks and 77 checks each for foreground/background packaged starts pass. Active frame payload budget checks are distinct from total process memory guarantees.
+
+## Taskbar disappearance
+- GetWindowRect contains nonclient borders/title bars; monitor-sized outer bounds do not prove fullscreen. Reproduced false hide with a real bordered foreground window against the original native locator.
+- ClientToScreen + GetClientRect matches true content coverage; compare all four monitor edges within2px rather than any window containing the monitor. This excludes ordinary maximized and cross-monitor spanning windows.
+- Verified fullscreen restoration through actual native foreground changes and repeated cycles. A bounded status log distinguishes fullscreen, shell autohide, missing locator and space shortage for future intermittent reports.

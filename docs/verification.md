@@ -1,5 +1,16 @@
 # Release verification · 2026-10-19
 
+## 0.4.1 taskbar visibility correction
+
+- User reports intermittent disappearance while operating other apps; whether the Windows taskbar also hides is unknown. Found and reproduced one concrete cause rather than assuming it covers every instance.
+- Red native integration regression: an ordinary bordered foreground window with monitor-sized outer bounds causes 0.4.0 NativeTaskbarLocator.Locate to return Visible=false. Evidence: `artifacts/visibility-native-red/smoke-result.json`.
+- Fullscreen classification now uses client bounds converted to physical screen coordinates, with 2px edge tolerance. Resize borders/title bars, a normal maximized work-area window, a multi-monitor spanning window and fullscreen on another monitor do not qualify for primary-monitor fullscreen.
+- **53 Core checks passed**. Release build **0 warnings, 0 errors**. Self-contained 0.4.1: **84 Windows checks in normal mode and 84 in background-start mode, all pass with no skips**. The native foreground activation, actual fullscreen hide, return-to-normal restoration and three repeated switch cycles ran on an accessible desktop.
+- Distinct status explains fullscreen versus taskbar autohide. Status transitions record time/reason in `taskbar-status.log`, rotate after about64KiB with one previous file, and collect no application titles or content. Filesystem failures do not stop the app. Other disappearance sources (space shortage/Explorer availability) remain visible in status and log.
+- Read-only review found no important issues. No change to GIF placement/scaling, taskbar collision policy or startup preferences.
+- Gracefully invoked the prior user's own Exit command and saved settings; activated **0.4.1.0 process81808** in background mode. Existing four buddy configurations match the post-exit snapshot exactly. Startup enabled/disabled preference preserved; enabled Run path now points to 0.4.1 with --background. Latest real-profile status confirms fixed strip is showing left of the chevron.
+- Evidence: `artifacts/visibility-release/`, `artifacts/visibility-background-release/`, `artifacts/visibility-release/activation.json`.
+
 ## 0.4.0 optimization and login startup
 
 - Release build: **0 warnings, 0 errors**. **46 Core checks passed**.

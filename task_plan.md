@@ -4,10 +4,10 @@
 Deliver a usable native Windows app with independent animated resource buddies in the system tray and on the desktop, arbitrary GIF import, and a distinctive Traditional Chinese manager.
 
 ## Next Step
-Optimization release delivered; verified 0.4.0 is running with current-user background login startup enabled.
+0.4.1 delivered and activated; taskbar visibility regression verified, existing buddy and startup preferences preserved.
 
 ## Current Phase
-Optimization release (complete)
+Taskbar visibility correction (complete)
 
 ## Phases
 1. Design and upstream evaluation — complete.
@@ -18,6 +18,8 @@ Optimization release (complete)
 6. Replace per-buddy notification icons with a taskbar-anchored animation strip left of the notification-area chevron; preserve desktop mode and settings — complete.
 7. Fill available GIF height, derive widths from aspect ratio, move values beside animations and support horizontal overflow — complete.
 8. Fix audited backup/import/retention bugs; bounded shared GIF decoding, asynchronous startup, idle animation suspension and login startup — complete.
+
+9. Correct outer-window fullscreen false positives and record bounded visibility transitions — complete.
 
 ## Decisions
 - User authorized autonomous design and implementation on 2026-10-19; no further design approval is required.

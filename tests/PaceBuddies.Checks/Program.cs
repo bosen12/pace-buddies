@@ -82,4 +82,12 @@ using(var requests=new LatestRequest())
 }
 Check("startup quotes executable with spaces",StartupCommand.Build(@"C:\My App\PaceBuddies.exe",true)=="\"C:\\My App\\PaceBuddies.exe\" --background");
 Check("startup can show manager",StartupCommand.Build(@"C:\App.exe",false)=="\"C:\\App.exe\"");
+var screenRect=new PixelRect(0,0,1920,1080);
+Check("true fullscreen client covers monitor",FullscreenDetection.CoversMonitor(screenRect,screenRect));
+Check("maximized work-area client is not fullscreen",!FullscreenDetection.CoversMonitor(new(0,31,1920,1032),screenRect));
+Check("monitor-sized bordered outer window is not fullscreen client",!FullscreenDetection.CoversMonitor(new(8,31,1912,1072),screenRect));
+Check("multi-monitor window is not single-monitor fullscreen",!FullscreenDetection.CoversMonitor(new(-1920,0,1920,1080),screenRect));
+Check("fullscreen on another monitor does not hide primary buddies",!FullscreenDetection.CoversMonitor(new(-1920,0,0,1080),screenRect));
+Check("fullscreen tolerates tiny compositor offsets",FullscreenDetection.CoversMonitor(new(-1,1,1921,1080),screenRect));
+Check("empty client is not fullscreen",!FullscreenDetection.CoversMonitor(new(0,0,0,0),screenRect));
 Console.WriteLine($"All {count} behavior checks passed.");
