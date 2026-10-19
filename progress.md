@@ -15,3 +15,13 @@
 - Reproduced stale pause regression in an isolated Windows run before fix; expanded packaged smoke suite now passes all 30 checks.
 - Inspected final 911×512 DIP work-area render and transparent desktop character render. Verified native click-through flag both enabled and disabled.
 - Final Release build has 0 warnings and 0 errors; 24 core + 30 packaged Windows checks pass. Delivery: dist/PaceBuddies-win-x64/PaceBuddies.exe and dist/PaceBuddies-0.1.0-win-x64.zip.
+
+## Taskbar placement correction
+- User clarified that animated buddies belong LEFT of the hidden-icons chevron, not inside notification overflow.
+- Added shared no-activate taskbar overlay; removed per-buddy NotifyIcons, retained one static recovery manager. Existing ShowTray settings migrate to the fixed strip.
+- Added native taskbar/tray/button geometry tracking, fullscreen/autohide behavior, conservative collision checks and readable status.
+- Red-green geometry check reproduced missing fixed placement; 33 core checks pass.
+- First live integration run passed 39 checks, proving actual x1505–1619 window bounds are before TrayNotifyWnd starting x1623 and visible above taskbar surface. Added no-activate check and accounted for hidden Windows 11 compatibility control bounds.
+- Final 0.2.0 portable build: 0 warnings/errors; 33 Core + 40 packaged Windows checks passed. Actual strip x1505–1619, notification area begins x1623, app buttons end x1028; on-screen z-order and no-activate confirmed.
+- Read-only review found no blocking defects. Documentation now covers fixed placement, non-reservation, unsupported/no-space fallback and Windows 10 validation limits.
+- Invoked the old app's own Exit button through its UI Automation interface, confirming graceful exit and settings save; launched dist/PaceBuddies-0.2.0-win-x64/PaceBuddies.exe with existing user data.

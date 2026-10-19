@@ -1,5 +1,7 @@
 # Pace Buddies · 跑跑夥伴
 
+**0.2.0 correction:** Animated taskbar buddies are fixed to the LEFT of the hidden-icons chevron, outside the notification overflow. Only the static recovery manager remains a NotifyIcon. See `2026-10-19-taskbar-placement.md` for the corrected requirements; it supersedes per-buddy tray-icon behavior below.
+
 Native Windows 10/11 personal resource companions. Each buddy owns a name, built-in sprite or imported GIF, CPU/RAM/GPU source, speed minimum/maximum, response smoothing, pause state, desktop/tray visibility, desktop size, topmost/locked/click-through state, numeric label mode, and physical screen position.
 
 ## Product design

@@ -33,6 +33,9 @@ public partial class MainWindow : Window
         coordinator.Notice+=ShowNotice;
         coordinator.ExternalSettingsChanging+=FlushEdits;
         coordinator.ExternalSettingsChanged+=LoadSelected;
+        coordinator.BuddyOpened+=OpenBuddy;
+        coordinator.TaskbarStatusChanged+=text=>DockStatus.Text=text;
+        DockStatus.Text=coordinator.TaskbarStatus;
         loading=false;
         if(coordinator.Buddies.Count>0) Roster.SelectedIndex=0;else LoadSelected();
     }
@@ -166,6 +169,7 @@ public partial class MainWindow : Window
     private void OnExit(object sender,RoutedEventArgs e)=>((App)Application.Current).ExitApplication();
     private void OnClosing(object? sender,CancelEventArgs e){if(!AllowClose){FlushEdits();e.Cancel=true;Hide();}}
     public void Reopen() {FlushEdits();LoadSelected();Show();if(WindowState==WindowState.Minimized)WindowState=WindowState.Normal;Activate();}
+    public void OpenBuddy(BuddyRuntime buddy){FlushEdits();Roster.SelectedItem=buddy;Reopen();}
     public void ExerciseEditorForCheck()
     {
         Roster.SelectedIndex=0;NameBox.Text="麻糬 · 測試";SourceBox.SelectedIndex=0;MinSlider.Value=.6;MaxSlider.Value=4.5;

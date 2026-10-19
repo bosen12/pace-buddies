@@ -12,6 +12,7 @@ public sealed class BuddyConfig
     public string Builtin { get; set; } = "cat";
     public string? GifPath { get; set; }
     public MetricSource Source { get; set; }
+    // Retained serialized name for 0.1 settings; now controls fixed taskbar placement.
     public bool ShowTray { get; set; } = true;
     public bool ShowDesktop { get; set; } = true;
     public bool Paused { get; set; }

@@ -17,8 +17,10 @@ public sealed class RuntimeCoordinator : IDisposable
     public event Action<string>? Notice;
     public event Action? ExternalSettingsChanging;
     public event Action? ExternalSettingsChanged;
+    public event Action<BuddyRuntime>? BuddyOpened;
+    public event Action<string>? TaskbarStatusChanged;
     private readonly Dictionary<Guid,DesktopBuddyWindow> desktops=[];
-    private readonly Dictionary<Guid,Forms.NotifyIcon> trays=[];
+    private readonly TaskbarBuddyWindow taskbar;
     private readonly SystemMonitor monitor=new();
     private readonly DispatcherTimer animationTimer,saveTimer;
     private readonly Stopwatch stopwatch=Stopwatch.StartNew();
@@ -28,7 +30,9 @@ public sealed class RuntimeCoordinator : IDisposable
     private readonly Forms.NotifyIcon manager;
     private readonly AnimationAsset managerAsset=BuiltinSprites.Create("cat");
     public int DesktopCount=>desktops.Count;
-    public int TrayCount=>trays.Count;
+    public int TaskbarCount=>taskbar.BuddyCount;
+    public int ManagerTrayCount=>manager.Visible?1:0;
+    public string TaskbarStatus=>taskbar.Status;
     public RuntimeCoordinator(AppSettings settings,SettingsStore store,Action open,Action exit)
     {
         Settings=settings; Store=store;this.open=open;
@@ -42,28 +46,25 @@ public sealed class RuntimeCoordinator : IDisposable
         manager.MouseClick+=(_,e)=>{if(e.Button==Forms.MouseButtons.Left) open();};
         saveTimer=new DispatcherTimer { Interval=TimeSpan.FromMilliseconds(600) };
         saveTimer.Tick+=(_,_)=>{saveTimer.Stop();Save();};
+        taskbar=new(buddy=>{if(BuddyOpened!=null)BuddyOpened(buddy);else open();},EditExternally);
+        taskbar.StatusChanged+=text=>TaskbarStatusChanged?.Invoke(text);
         foreach(var config in settings.Buddies) {var runtime=new BuddyRuntime(config);Buddies.Add(runtime);Apply(runtime,false);}
         animationTimer=new DispatcherTimer(DispatcherPriority.Background){Interval=TimeSpan.FromMilliseconds(1000.0/30)};
         animationTimer.Tick+=(_,_)=>Animate();animationTimer.Start();
         monitor.Sampled+=sample=>Application.Current.Dispatcher.BeginInvoke(()=>
         {
             Snapshot=sample;
-            foreach(var b in Buddies)
-            {
-                b.SetSample(sample);
-                if(trays.TryGetValue(b.Config.Id,out var tray)) tray.Text=Truncate($"{b.Name} · {b.SourceName} {b.Reading}\n{b.SpeedText} · 點一下管理",120);
-            }
+            foreach(var b in Buddies)b.SetSample(sample);
             Sampled?.Invoke(sample);
         });
         monitor.Start();
     }
-    private static string Truncate(string s,int length)=>s[..Math.Min(s.Length,length)];
     private void Animate()
     {
         var now=stopwatch.Elapsed; var elapsed=(now-previous).TotalSeconds;previous=now;
         foreach(var b in Buddies)
         {
-            if(b.Advance(elapsed)&&trays.TryGetValue(b.Config.Id,out var tray)) tray.Icon=b.Asset.TrayFrames[b.FrameIndex];
+            b.Advance(elapsed);
             if(tick%6==0) b.NotifySpeed();
         }
         tick++;
@@ -76,28 +77,14 @@ public sealed class RuntimeCoordinator : IDisposable
     }
     public void Remove(BuddyRuntime buddy)
     {
-        if(trays.Remove(buddy.Config.Id,out var tray)) {var menu=tray.ContextMenuStrip;tray.Dispose();menu?.Dispose();}
         if(desktops.Remove(buddy.Config.Id,out var window)) window.Close();
-        Buddies.Remove(buddy);Settings.Buddies.Remove(buddy.Config);buddy.Dispose();SaveSoon();
+        Buddies.Remove(buddy);Settings.Buddies.Remove(buddy.Config);taskbar.Synchronize(Buddies);buddy.Dispose();SaveSoon();
     }
     public void Apply(BuddyRuntime buddy,bool save=true)
     {
         buddy.Config.Normalize();buddy.SetSample(Snapshot);buddy.NotifySettings();
         var b=buddy.Config;
-        if(b.ShowTray)
-        {
-            if(!trays.TryGetValue(b.Id,out var tray))
-            {
-                tray=new Forms.NotifyIcon();trays[b.Id]=tray;
-                tray.MouseClick+=(_,e)=>{if(e.Button==Forms.MouseButtons.Left) open();};
-                var menu=new Forms.ContextMenuStrip();
-                menu.Items.Add("管理夥伴",null,(_,_)=>open());
-                menu.Items.Add("暫停 / 繼續",null,(_,_)=>EditExternally(()=>b.Paused=!b.Paused));
-                menu.Items.Add("重設桌面位置",null,(_,_)=>ResetPosition(buddy));tray.ContextMenuStrip=menu;
-            }
-            tray.Icon=buddy.Asset.TrayFrames[buddy.FrameIndex];tray.Text=Truncate($"{buddy.Name} · {buddy.SourceName} {buddy.Reading}",120);tray.Visible=true;
-        }
-        else if(trays.Remove(b.Id,out var oldTray)) {var menu=oldTray.ContextMenuStrip;oldTray.Dispose();menu?.Dispose();}
+        taskbar.Synchronize(Buddies);
         if(b.ShowDesktop)
         {
             if(!desktops.TryGetValue(b.Id,out var desktop))
@@ -125,7 +112,7 @@ public sealed class RuntimeCoordinator : IDisposable
     public void Dispose()
     {
         animationTimer.Stop();saveTimer.Stop();monitor.Dispose();Save();
-        foreach(var tray in trays.Values){var menu=tray.ContextMenuStrip;tray.Dispose();menu?.Dispose();}trays.Clear();
+        taskbar.Close();
         var managerMenu=manager.ContextMenuStrip;manager.Dispose();managerMenu?.Dispose();
         foreach(var window in desktops.Values)window.Close();desktops.Clear();
         foreach(var buddy in Buddies)buddy.Dispose();managerAsset.Dispose();

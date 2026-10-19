@@ -4,7 +4,7 @@
 Deliver a usable native Windows app with independent animated resource buddies in the system tray and on the desktop, arbitrary GIF import, and a distinctive Traditional Chinese manager.
 
 ## Next Step
-None. Portable app verified, source and usage guide ready for delivery.
+None. Corrected 0.2.0 fixed-taskbar release verified and running with existing settings.
 
 ## Current Phase
 Complete
@@ -15,6 +15,7 @@ Complete
 3. Native CPU/RAM/GPU telemetry, GIF decoding, pixel buddies, tray and transparent desktop windows — complete.
 4. WPF manager: previews, per-buddy editing, telemetry history, drag/drop import — complete.
 5. Integration checks, render inspection, portable packaging and documentation — complete.
+6. Replace per-buddy notification icons with a taskbar-anchored animation strip left of the notification-area chevron; preserve desktop mode and settings — complete.
 
 ## Decisions
 - User authorized autonomous design and implementation on 2026-10-19; no further design approval is required.
@@ -23,6 +24,7 @@ Complete
 - Original implementation, inspired by RunCat; upstream inspected at ../resource-buddies-upstream.
 - Use a single shared 1-second telemetry sampler and 30 Hz animation clock; rebuild tray icon only when the frame changes.
 - GPU is busiest engine across adapters, summing per-process values for the same physical engine. Report unavailable honestly.
+- User correction: animated characters belong to the LEFT of the hidden-icons chevron, outside the notification overflow. Keep only the fixed recovery manager as a NotifyIcon. Preserve the existing ShowTray serialized setting as the taskbar-strip toggle to migrate installed configurations.
 
 ## Errors
 - Sandboxed git network DNS failed; explicit network escalation successfully fetched the public reference repository.

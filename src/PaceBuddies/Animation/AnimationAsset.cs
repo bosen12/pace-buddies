@@ -23,6 +23,8 @@ public sealed class AnimationAsset : IDisposable
             {
                 using var png=new MemoryStream(); bitmap.Save(png,ImageFormat.Png); png.Position=0;
                 var frame=BitmapFrame.Create(png,BitmapCreateOptions.PreservePixelFormat,BitmapCacheOption.OnLoad); frame.Freeze(); frames.Add(frame);
+                // Only the recovery manager needs a static native icon; animated frames render in WPF.
+                if(icons.Count>0)continue;
                 using var small=new Bitmap(32,32,PixelFormat.Format32bppArgb);
                 using(var g=Graphics.FromImage(small))
                 {

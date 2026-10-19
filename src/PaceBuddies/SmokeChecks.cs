@@ -20,7 +20,21 @@ internal static class SmokeChecks
         try
         {
             Check("Three independent desktop windows",coordinator.DesktopCount==3);
-            Check("Three animated tray icons plus recovery manager",coordinator.TrayCount==3);
+            Check("Three fixed taskbar buddies outside notification overflow",coordinator.TaskbarCount==3);
+            Check("Only one static recovery notification icon",coordinator.ManagerTrayCount==1);
+            var dock=Application.Current.Windows.OfType<TaskbarBuddyWindow>().Single();
+            dock.RefreshAnchor();await Task.Delay(150);
+            var anchor=NativeTaskbarLocator.Locate();
+            Check("Native taskbar and notification bounds located",anchor!=null);
+            Check("Fixed taskbar window is visible",dock.IsVisible);
+            Check("Fixed taskbar window cannot steal keyboard focus",(GetWindowLongPtr(new WindowInteropHelper(dock).Handle,-20).ToInt64()&0x08000000)!=0);
+            GetWindowRect(new WindowInteropHelper(dock).Handle,out var dockRect);
+            Check("Actual window lies left of the hidden-icons chevron",anchor!=null&&dockRect.Right<=anchor.Notification.Left-2&&dockRect.Top>=anchor.Bar.Top&&dockRect.Bottom<=anchor.Bar.Bottom);
+            Check("Actual window avoids active task buttons",anchor!=null&&dockRect.Left>=anchor.OccupiedRight);
+            Check("Fixed strip is on screen above taskbar surface",WindowFromPoint(new NativePoint((dockRect.Left+dockRect.Right)/2,(dockRect.Top+dockRect.Bottom)/2))==new WindowInteropHelper(dock).Handle);
+            ((System.Windows.Controls.Border)((System.Windows.Controls.StackPanel)dock.Content).Children[1]).RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice,Environment.TickCount,System.Windows.Input.MouseButton.Left){RoutedEvent=UIElement.MouseLeftButtonUpEvent});
+            Check("Clicking a fixed buddy opens its own settings",ReferenceEquals(((System.Windows.Controls.ListBox)manager.FindName("Roster")).SelectedItem,coordinator.Buddies[1]));
+            manager.OpenBuddy(coordinator.Buddies[0]);
             Check("Original pixel sprites have eight distinct animation frames",coordinator.Buddies.All(b=>b.Asset.Frames.Length==8));
             coordinator.Settings.Buddies.ForEach(b=>b.Paused=true);
             manager.FlushEdits();
@@ -60,15 +74,19 @@ internal static class SmokeChecks
             Check("Editor isolates other buddies",coordinator.Buddies[1].Config.MinimumSpeed==.5);
             var config=coordinator.Buddies[0].Config;
             config.ShowDesktop=false;config.ShowTray=false;coordinator.Apply(coordinator.Buddies[0]);
-            Check("Display modes toggle independently",coordinator.DesktopCount==2&&coordinator.TrayCount==2);
+            Check("Display modes toggle independently",coordinator.DesktopCount==2&&coordinator.TaskbarCount==2);
             config.ShowDesktop=true;config.ShowTray=true;config.ClickThrough=true;coordinator.Apply(coordinator.Buddies[0]);
-            Check("Click-through can be enabled with recovery tray",coordinator.DesktopCount==3&&coordinator.TrayCount==3);
+            Check("Click-through desktop retains fixed taskbar buddies",coordinator.DesktopCount==3&&coordinator.TaskbarCount==3);
             var desktop=Application.Current.Windows.OfType<DesktopBuddyWindow>().First(w=>ReferenceEquals(w.DataContext,coordinator.Buddies[0]));
             Check("Native click-through style is enabled",(GetWindowLongPtr(new WindowInteropHelper(desktop).Handle,-20).ToInt64()&0x20)!=0);
             config.ClickThrough=false;coordinator.Apply(coordinator.Buddies[0]);
             Check("Native click-through style can be disabled",(GetWindowLongPtr(new WindowInteropHelper(desktop).Handle,-20).ToInt64()&0x20)==0);
             var added=coordinator.Add();Check("Add independent buddy",coordinator.Buddies.Count==4&&coordinator.DesktopCount==4);
-            coordinator.Remove(added);Check("Remove releases windows and tray icons",coordinator.Buddies.Count==3&&coordinator.DesktopCount==3&&coordinator.TrayCount==3);
+            coordinator.Remove(added);Check("Remove releases windows and taskbar cells",coordinator.Buddies.Count==3&&coordinator.DesktopCount==3&&coordinator.TaskbarCount==3);
+            coordinator.EditExternally(()=>{foreach(var b in coordinator.Buddies)b.Config.ShowTray=false;});
+            Check("Disabling fixed buddies hides strip while retaining manager",!dock.IsVisible&&coordinator.TaskbarCount==0&&coordinator.ManagerTrayCount==1);
+            coordinator.EditExternally(()=>{foreach(var b in coordinator.Buddies)b.Config.ShowTray=true;});
+            Check("Fixed buddies can be restored",dock.IsVisible&&coordinator.TaskbarCount==3);
             while(coordinator.Snapshot.Cpu==null&&watch.Elapsed.TotalSeconds<12)await Task.Delay(200);
             Check("Real CPU telemetry is sampled",coordinator.Snapshot.Cpu is >=0 and <=100);
             Check("Real physical RAM telemetry is sampled",coordinator.Snapshot.Memory is >0 and <=100);
@@ -77,7 +95,7 @@ internal static class SmokeChecks
             Check("Settings and imported GIF survive reload",coordinator.Store.Load().Settings.Buddies[0].GifPath==config.GifPath);
             // Return to the original sprite for the product screenshot after validating arbitrary GIFs.
             config.GifPath=null;coordinator.Buddies[0].ReplaceAsset(BuiltinSprites.Create("cat"));coordinator.Apply(coordinator.Buddies[0]);
-            config.Name="麻糬";manager.Reopen();manager.FlushEdits();
+            config.Name="麻糬";coordinator.Buddies[0].NotifySettings();manager.Reopen();manager.FlushEdits();
             await Task.Delay(250);await manager.Dispatcher.InvokeAsync(()=>{},DispatcherPriority.Render);
             Capture(manager,Path.Combine(output,"manager.png"));
             manager.Width=950;manager.Height=670;manager.UpdateLayout();await Task.Delay(100);
@@ -89,7 +107,8 @@ internal static class SmokeChecks
             var footer=(System.Windows.Controls.TextBlock)manager.FindName("Status");
             Check("Small work area keeps footer inside window",footer.TranslatePoint(new Point(0,footer.ActualHeight),manager).Y<=manager.ActualHeight);
             Capture(desktop,Path.Combine(output,"desktop-buddy.png"));
-            File.WriteAllText(Path.Combine(output,"smoke-result.json"),JsonSerializer.Serialize(new{Success=true,Checks=results,Telemetry=coordinator.Snapshot,ElapsedSeconds=watch.Elapsed.TotalSeconds},new JsonSerializerOptions{WriteIndented=true}));
+            Capture(dock,Path.Combine(output,"fixed-taskbar-buddies.png"));
+            File.WriteAllText(Path.Combine(output,"smoke-result.json"),JsonSerializer.Serialize(new{Success=true,Checks=results,Taskbar=new{Bar=anchor?.Bar,Notification=anchor?.Notification,OccupiedRight=anchor?.OccupiedRight,Scale=anchor?.Scale},ActualTaskbarBounds=dockRect,Telemetry=coordinator.Snapshot,ElapsedSeconds=watch.Elapsed.TotalSeconds},new JsonSerializerOptions{WriteIndented=true}));
         }
         catch(Exception ex)
         {File.WriteAllText(Path.Combine(output,"smoke-result.json"),JsonSerializer.Serialize(new{Success=false,Checks=results,Error=ex.ToString()},new JsonSerializerOptions{WriteIndented=true}));Environment.ExitCode=1;}
@@ -102,4 +121,7 @@ internal static class SmokeChecks
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var stream=File.Create(path);encoder.Save(stream);
     }
     [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")] private static extern IntPtr GetWindowLongPtr(IntPtr window,int index);
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window,out PixelRect rect);
+    [StructLayout(LayoutKind.Sequential)] private readonly record struct NativePoint(int X,int Y);
+    [DllImport("user32.dll")] private static extern IntPtr WindowFromPoint(NativePoint point);
 }

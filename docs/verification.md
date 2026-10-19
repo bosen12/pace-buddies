@@ -1,5 +1,19 @@
 # Release verification · 2026-10-19
 
+## 0.2.0 taskbar placement correction
+
+The animated characters are now in one transparent no-activate window immediately LEFT of the hidden-icons chevron. Only the static manager uses a notification icon. Existing settings and GIF paths are preserved.
+
+- 33 Core checks cover prior behavior plus taskbar geometry, negative coordinates, compact cells, collision prevention and unsupported layout.
+- Final self-contained 0.2.0 executable passed **40 Windows checks**, exit 0; Release build: **0 warnings, 0 errors**.
+- Live Windows 11 build 26200 checks verify native placement before TrayNotifyWnd, window z-order using WindowFromPoint, no-activate style, selecting the clicked buddy, independent modes, cleanup, GIF decoding and persistence.
+- Reviewed the strip's own render; no third-party shell source is copied or injected.
+- The strip does not reserve taskbar space; crowded/unsupported layouts show a status and desktop fallback. Classic Windows 10 and modified taskbars are not validated for the new strip (the task list's container can conservatively indicate no available space). Mixed-DPI moves, autohide/fullscreen transitions and Explorer restart need broader live validation.
+
+Final release evidence: `artifacts/taskbar-release-smoke/`.
+
+## 0.1.0 initial release
+
 Release 0.1.0, Windows x64. .NET SDK 8.0.426.
 
 - Core executable checks: **24 passed**.
